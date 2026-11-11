@@ -1,0 +1,7 @@
+# Fichiers fabriqués automatiquement : inutile de les envoyer sur GitHub
+.cache/
+__pycache__/
+public/deals.json
+
+# Réglages de l'application Claude
+.claude/
