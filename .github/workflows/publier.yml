@@ -1,0 +1,52 @@
+# Met le site en ligne sur GitHub Pages et garde les prix à jour.
+# À chaque exécution : relevé des promos Steam -> public/deals.json -> publication du dossier public/.
+# Si le relevé échoue, rien n'est publié : la version déjà en ligne reste en place.
+name: Publier le site
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "7,37 * * * *"   # toutes les 30 minutes
+  workflow_dispatch:          # bouton « Run workflow » de l'onglet Actions
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  actions: write              # pour la dernière étape (garder la planification active)
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.mise-en-ligne.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Relever les promotions Steam
+        run: python3 server.py --export public
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: public
+
+      - id: mise-en-ligne
+        uses: actions/deploy-pages@v5
+
+      # GitHub suspend les tâches planifiées d'un dépôt resté 60 jours sans activité.
+      # Réactiver la tâche à chaque passage remet ce compteur à zéro.
+      - name: Garder la planification active
+        if: github.event_name == 'schedule'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/publier.yml/enable"
