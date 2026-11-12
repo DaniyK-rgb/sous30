@@ -2,6 +2,7 @@
 .cache/
 __pycache__/
 public/deals.json
+public/releve.txt
 
 # Réglages de l'application Claude
 .claude/

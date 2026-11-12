@@ -8,6 +8,7 @@
   <meta property="og:type" content="website">
   <meta property="og:title" content="Sous 30 — toutes les promos Steam à moins de 30 €">
   <meta property="og:description" content="Tous les jeux Steam en promotion à moins de 30 €, relevés sur la boutique française. Plus la réduction est forte, plus la carte chauffe.">
+  <meta name="author" content="Daniel, Nicolas and Samuel">
   <meta name="theme-color" content="#05031a">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='g' cx='50%25' cy='55%25' r='50%25'%3E%3Cstop offset='0' stop-color='%23fff3bf'/%3E%3Cstop offset='.3' stop-color='%23ffd22e'/%3E%3Cstop offset='.5' stop-color='%23ff8a1c'/%3E%3Cstop offset='.72' stop-color='%23d42fa6'/%3E%3Cstop offset='1' stop-color='%234b57ff'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='32' cy='32' r='30' fill='url(%23g)'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,10 +35,16 @@
       <span class="brand__spot" aria-hidden="true"></span>
       <span class="brand__name">sous<b>30</b></span>
     </a>
-    <p class="live" id="live" data-state="loading">
-      <span class="live__dot" aria-hidden="true"></span>
-      <span id="liveText">Connexion à Steam…</span>
-    </p>
+    <div class="nav__right">
+      <p class="live" id="live" data-state="loading">
+        <span class="live__dot" aria-hidden="true"></span>
+        <span id="liveText">Chargement des prix…</span>
+      </p>
+      <button type="button" class="account" id="accountBtn" aria-label="Se connecter ou créer un compte">
+        <span class="account__avatar" id="accountAvatar" aria-hidden="true"></span>
+        <span class="account__label" id="accountLabel">Connexion</span>
+      </button>
+    </div>
   </header>
 
   <main id="top">
@@ -150,6 +157,10 @@
         <p class="count" id="count" aria-live="polite">Relevé des offres…</p>
         <div class="progress" id="progress" role="progressbar" aria-label="Chargement du catalogue" aria-valuemin="0" aria-valuemax="100"><i></i></div>
         <button type="button" class="linkbtn" id="reset" hidden>Réinitialiser les filtres</button>
+        <button type="button" class="chip chip--sm chip--fav" id="favChip" aria-pressed="false" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          Mes favoris<small id="favCount">0</small>
+        </button>
         <div class="plats-filter" role="group" aria-label="Compatibilité">
           <span>Compatible</span>
           <button type="button" class="chip chip--sm" data-plat="m" aria-pressed="false">macOS</button>
@@ -163,8 +174,8 @@
 
       <div class="empty" id="empty" hidden>
         <p class="empty__big" aria-hidden="true">0</p>
-        <h3>Rien à cette température.</h3>
-        <p>Aucune offre ne correspond à ces filtres. Une recherche plus courte, une réduction minimale plus basse ou un budget plus large en feront remonter.</p>
+        <h3 id="emptyTitle">Rien à cette température.</h3>
+        <p id="emptyText">Aucune offre ne correspond à ces filtres. Une recherche plus courte, une réduction minimale plus basse ou un budget plus large en feront remonter.</p>
         <button type="button" class="btn" id="resetEmpty">Réinitialiser les filtres</button>
       </div>
 
@@ -178,6 +189,8 @@
   </main>
 
   <footer class="foot shell">
+    <p class="credit">Made by <b>Daniel</b>, <b>Nicolas</b> and <b>Samuel</b></p>
+    <p>Site et design © 2026 Daniel, Nicolas et Samuel. Tous droits réservés.</p>
     <p>
       Prix relevés sur la boutique Steam France, en euros<span id="footTime"></span>. Ils peuvent changer à tout moment&nbsp;:
       le prix affiché sur Steam fait foi.
@@ -188,6 +201,57 @@
   <a class="totop" href="#offres" aria-label="Revenir aux filtres">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
   </a>
+
+  <!-- Menu du compte (s'ouvre sous le bouton du compte une fois connecté) -->
+  <div class="menu" id="accountMenu" popover>
+    <p class="menu__who">Connecté en tant que <b id="menuName"></b></p>
+    <button type="button" id="menuFavs">Mes favoris <small id="menuFavCount">0</small></button>
+    <button type="button" id="menuLogout">Se déconnecter</button>
+    <button type="button" id="menuDelete" class="menu__danger">Supprimer ce compte</button>
+  </div>
+
+  <!-- Fenêtre d'inscription et de connexion -->
+  <dialog class="auth" id="auth" aria-labelledby="authTitle">
+    <button type="button" class="auth__close" id="authClose" aria-label="Fermer">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <p class="kicker">Ton compte</p>
+    <h2 id="authTitle">Connexion</h2>
+    <p class="auth__hint" id="authHint">Garde tes jeux favoris et retrouve-les à chaque visite.</p>
+
+    <div class="seg auth__modes" role="radiogroup" aria-label="Connexion ou inscription">
+      <label><input type="radio" name="authMode" id="authModeIn" value="in" checked><span>Connexion</span></label>
+      <label><input type="radio" name="authMode" id="authModeUp" value="up"><span>Inscription</span></label>
+    </div>
+
+    <form class="auth__form" id="authForm" novalidate>
+      <div class="entry">
+        <label for="authName">Pseudo</label>
+        <span class="entry__box">
+          <input id="authName" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20" required>
+        </span>
+      </div>
+      <div class="entry">
+        <label for="authPass">Mot de passe</label>
+        <span class="entry__box">
+          <input id="authPass" name="password" type="password" autocomplete="current-password" required>
+          <button type="button" class="entry__peek" id="authPeek" aria-pressed="false">Voir</button>
+        </span>
+      </div>
+      <div class="entry" id="authConfirmRow" hidden>
+        <label for="authPass2">Confirme le mot de passe</label>
+        <span class="entry__box">
+          <input id="authPass2" name="password2" type="password" autocomplete="new-password">
+        </span>
+      </div>
+      <p class="auth__error" id="authError" role="alert"></p>
+      <button type="submit" class="btn auth__submit" id="authSubmit">Se connecter</button>
+    </form>
+
+    <p class="auth__note">Ton compte et tes favoris sont enregistrés dans ce navigateur, sur cet appareil. Rien n'est envoyé sur Internet.</p>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="app.js" defer></script>
 </body>

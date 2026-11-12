@@ -235,6 +235,8 @@ def export(folder: Path) -> None:
     folder.mkdir(parents=True, exist_ok=True)
     target = folder / "deals.json"
     target.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    # Heure du relevé, dans un fichier minuscule : la publication automatique le lit pour savoir si les prix sont récents.
+    (folder / "releve.txt").write_text(str(int(time.time())), encoding="ascii")
     log(f"{len(rows)} offres écrites dans {target} en {time.time() - started:.1f} s")
 
 

@@ -30,11 +30,21 @@
     sort: $('#sort'), genres: $('#genres'), count: $('#count'), progress: $('#progress'), reset: $('#reset'),
     grid: $('#grid'), sentinel: $('#sentinel'), empty: $('#empty'), fail: $('#fail'), failText: $('#failText'),
     barAnchor: $('#barAnchor'), footTime: $('#footTime'), deals: $('#offres'),
+    emptyTitle: $('#emptyTitle'), emptyText: $('#emptyText'), favChip: $('#favChip'), favCount: $('#favCount'),
+    accountBtn: $('#accountBtn'), accountAvatar: $('#accountAvatar'), accountLabel: $('#accountLabel'),
+    menu: $('#accountMenu'), menuName: $('#menuName'), menuFavs: $('#menuFavs'), menuFavCount: $('#menuFavCount'),
+    menuLogout: $('#menuLogout'), menuDelete: $('#menuDelete'),
+    auth: $('#auth'), authTitle: $('#authTitle'), authHint: $('#authHint'), authForm: $('#authForm'),
+    authModeIn: $('#authModeIn'), authModeUp: $('#authModeUp'), authName: $('#authName'), authPass: $('#authPass'),
+    authPass2: $('#authPass2'), authConfirmRow: $('#authConfirmRow'), authPeek: $('#authPeek'),
+    authError: $('#authError'), authSubmit: $('#authSubmit'), authClose: $('#authClose'), toast: $('#toast'),
   };
+  const EMPTY_DEFAULT = { title: els.emptyTitle.textContent, text: els.emptyText.textContent };
 
   const state = {
     all: [], received: 0, total: 0, done: false, version: 0, updatedAt: 0,
     q: '', maxPrice: MAX_PRICE, minDisc: 0, minRev: 0, plats: new Set(), genres: new Set(), sort: 'pop',
+    onlyFavs: false,
     view: [], shown: 0,
   };
 
@@ -120,13 +130,16 @@
     const left = timeLeft(item);
     const ends = left ? `<span class="card__ends${left.soon ? ' is-soon' : ''}">${left.text}</span>` : '';
     const label = `${item.t} : ${final} au lieu de ${eur(item.o)}, réduction de ${item.d} %${left ? `, ${left.text}` : ''}. Ouvrir sur Steam.`;
-    return `<a class="card${mode ? ` card--${mode}` : ''}${item.d >= 85 ? ' card--blaze' : ''}" href="${STORE}${esc(item.u)}/" target="_blank" rel="noopener"`
-      + ` title="${esc(item.t)}" aria-label="${esc(label)}" style="--heat:${h.c};--ink-on:${h.ink};--k:${(item.d / 100).toFixed(2)};--i:${i}">`
-      + '<span class="card__in">'
+    const fav = account.favs.has(item.a);
+    // La carte entière est un lien vers Steam ; le cœur est un bouton à part, posé par-dessus.
+    return `<article class="card${mode ? ` card--${mode}` : ''}${item.d >= 85 ? ' card--blaze' : ''}"`
+      + ` style="--heat:${h.c};--ink-on:${h.ink};--k:${(item.d / 100).toFixed(2)};--i:${i}"><div class="card__in">`
+      + `<a class="card__link" href="${STORE}${esc(item.u)}/" target="_blank" rel="noopener" title="${esc(item.t)}" aria-label="${esc(label)}">`
       + `<span class="card__top"><span class="card__media">${artImg(item)}</span>${ends}<span class="card__pct">−${item.d}<small>%</small></span></span>`
       + `<span class="card__body"><span class="card__title">${esc(item.t)}</span>${review}`
-      + `<span class="card__foot"><span class="price"><s>${eur(item.o)}</s><b>${final}</b></span><span class="plats">${plats}</span></span></span>`
-      + '<span class="card__sheen"></span></span></a>';
+      + `<span class="card__foot"><span class="price"><s>${eur(item.o)}</s><b>${final}</b></span><span class="plats">${plats}</span></span></span></a>`
+      + `<button type="button" class="card__fav" data-fav="${item.a}" aria-pressed="${fav}" aria-label="${esc(favLabel(item.t, fav))}">${HEART}</button>`
+      + '<span class="card__sheen"></span></div></article>';
   }
 
   function posterHTML(item, i) {
@@ -152,7 +165,7 @@
   };
 
   const isFiltered = () => Boolean(state.q || state.maxPrice < MAX_PRICE || state.minDisc || state.minRev
-    || state.plats.size || state.genres.size);
+    || state.plats.size || state.genres.size || state.onlyFavs);
 
   function applyFilters() {
     const maxCents = state.maxPrice * 100;
@@ -161,6 +174,7 @@
     const out = [];
     for (const item of state.all) {
       if (item.f > maxCents || item.d < state.minDisc) continue;
+      if (state.onlyFavs && !account.favs.has(item.a)) continue;
       if (state.minRev && (!item.n || item.s < state.minRev)) continue;
       if (plats.length && !plats.every(p => item.p.includes(p))) continue;
       if (genres.length && !genres.every(g => item.g.includes(g))) continue;
@@ -216,6 +230,15 @@
     else els.count.innerHTML = `<b>${int(shown)}</b> offre${shown > 1 ? 's' : ''}${filtered ? ` sur ${int(total)}` : ''}`;
     els.reset.hidden = !filtered;
     els.empty.hidden = !(total && !shown);
+    if (state.onlyFavs && !shown) {
+      els.emptyTitle.textContent = account.favs.size ? 'Aucun favori en promo ici.' : 'Pas encore de favori.';
+      els.emptyText.textContent = account.favs.size
+        ? 'Aucun de tes jeux favoris ne correspond à ces filtres en ce moment. Ils reviendront ici à leur prochaine promo.'
+        : 'Touche le cœur d’une carte pour ajouter un jeu à tes favoris.';
+    } else {
+      els.emptyTitle.textContent = EMPTY_DEFAULT.title;
+      els.emptyText.textContent = EMPTY_DEFAULT.text;
+    }
     els.progress.hidden = state.done || !total;
     const ratio = state.total ? Math.min(1, total / state.total) : 0;
     els.progress.style.setProperty('--p', ratio.toFixed(3));
@@ -295,14 +318,14 @@
   }
 
   function resetFilters() {
-    Object.assign(state, { q: '', maxPrice: MAX_PRICE, minDisc: 0, minRev: 0 });
+    Object.assign(state, { q: '', maxPrice: MAX_PRICE, minDisc: 0, minRev: 0, onlyFavs: false });
     state.plats.clear();
     state.genres.clear();
     els.q.value = '';
     els.price.value = MAX_PRICE;
     els.disc.value = 0;
     $('#rev0').checked = true;
-    $$('[aria-pressed="true"]', els.deals).forEach(chip => chip.setAttribute('aria-pressed', 'false'));
+    $$('.chip[aria-pressed="true"]', els.deals).forEach(chip => chip.setAttribute('aria-pressed', 'false'));
     paintDials();
     refresh();
   }
@@ -375,7 +398,7 @@
     // « / » place le curseur dans la recherche
     addEventListener('keydown', e => {
       if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
-      if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
+      if (els.auth.open || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
       e.preventDefault();
       els.q.focus();
     });
@@ -457,6 +480,7 @@
       renderHot();
       renderTicker();
     }
+    paintFavs();
   }
 
   let loading = false;
@@ -502,6 +526,243 @@
     } finally {
       loading = false;
     }
+  }
+
+  /* ------------------------------------------------------------------ comptes et favoris
+     Le site n'a pas de serveur : chaque compte vit dans le navigateur du visiteur (localStorage)
+     et n'existe que sur son appareil. Le mot de passe n'est jamais gardé tel quel : on ne conserve
+     que son empreinte (PBKDF2), recalculée à chaque connexion. */
+  const ACCOUNTS_KEY = 'sous30:comptes';
+  const SESSION_KEY = 'sous30:session';
+  const NAME_RULE = /^[\p{L}\p{N}_-]{3,20}$/u;
+  const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+  const USER_ICON = '<svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+  const account = { id: '', name: '', favs: new Set() };   // compte connecté (id vide : personne)
+  let pendingFav = 0;                                      // jeu à mettre en favori une fois connecté
+
+  const vault = {
+    all() {
+      try {
+        const data = JSON.parse(localStorage.getItem(ACCOUNTS_KEY));
+        return data && typeof data === 'object' && !Array.isArray(data) ? data : {};
+      } catch { return {}; }
+    },
+    save(all) {
+      try { localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(all)); return true; } catch { return false; }
+    },
+    session() {
+      try { return localStorage.getItem(SESSION_KEY) || ''; } catch { return ''; }
+    },
+    setSession(id) {
+      try {
+        if (id) localStorage.setItem(SESSION_KEY, id); else localStorage.removeItem(SESSION_KEY);
+      } catch { /* stockage indisponible : la session ne sera simplement pas mémorisée */ }
+    },
+  };
+  const slot = id => `u:${id}`;   // préfixe : aucun pseudo ne peut heurter une propriété interne des objets
+
+  const toBase64 = buffer => btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  const fromBase64 = text => Uint8Array.from(atob(text), ch => ch.charCodeAt(0));
+  async function fingerprint(password, salt) {
+    const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+    return toBase64(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 150000 }, material, 256));
+  }
+
+  async function signUp(name, password) {
+    const id = name.toLowerCase(), all = vault.all();
+    if (all[slot(id)]) throw new Error('Ce pseudo est déjà pris sur cet appareil. Connecte-toi, ou choisis-en un autre.');
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    all[slot(id)] = { name, salt: toBase64(salt), hash: await fingerprint(password, salt), favs: [], created: Date.now() };
+    if (!vault.save(all)) throw new Error('Ce navigateur refuse d’enregistrer des données : impossible de créer un compte ici.');
+    openSession(id, all[slot(id)]);
+  }
+
+  async function signIn(name, password) {
+    const id = name.toLowerCase(), found = vault.all()[slot(id)];
+    if (!found) throw new Error(`Aucun compte « ${name} » sur cet appareil. Les comptes ne sont pas partagés entre appareils : crée-le avec l’onglet Inscription.`);
+    if (await fingerprint(password, fromBase64(found.salt)) !== found.hash) throw new Error('Mot de passe incorrect.');
+    openSession(id, found);
+  }
+
+  function openSession(id, record) {
+    Object.assign(account, { id, name: record.name, favs: new Set(record.favs || []) });
+    vault.setSession(id);
+    paintAccount();
+  }
+
+  function closeSession() {
+    const wasFiltered = state.onlyFavs;
+    Object.assign(account, { id: '', name: '', favs: new Set() });
+    vault.setSession('');
+    paintAccount();
+    if (wasFiltered) refresh({ snap: false });
+  }
+
+  function restoreSession() {
+    const id = vault.session();
+    const record = id && vault.all()[slot(id)];
+    if (record) Object.assign(account, { id, name: record.name, favs: new Set(record.favs || []) });
+    paintAccount();
+  }
+
+  function saveFavs() {
+    const all = vault.all();
+    if (!all[slot(account.id)]) return;
+    all[slot(account.id)].favs = [...account.favs];
+    vault.save(all);
+  }
+
+  function favLabel(title, on) {
+    return on ? `Retirer ${title} des favoris` : `Ajouter ${title} aux favoris`;
+  }
+
+  // Met à jour les cœurs affichés et le nombre de favoris actuellement en promo.
+  function paintFavs() {
+    const onSale = account.favs.size ? state.all.reduce((n, item) => n + (account.favs.has(item.a) ? 1 : 0), 0) : 0;
+    els.favCount.textContent = onSale;
+    els.menuFavCount.textContent = onSale;
+    for (const button of $$('.card__fav', els.grid)) {
+      const on = account.favs.has(+button.dataset.fav);
+      button.setAttribute('aria-pressed', on);
+      button.setAttribute('aria-label', favLabel(button.previousElementSibling.title, on));
+    }
+  }
+
+  function paintAccount() {
+    const on = Boolean(account.id);
+    els.accountLabel.textContent = on ? account.name : 'Connexion';
+    if (on) els.accountAvatar.textContent = Array.from(account.name)[0].toUpperCase();
+    else els.accountAvatar.innerHTML = USER_ICON;
+    els.accountBtn.setAttribute('aria-label', on ? `Compte de ${account.name} : ouvrir le menu` : 'Se connecter ou créer un compte');
+    els.menuName.textContent = account.name;
+    els.favChip.hidden = !on;
+    if (!on) { state.onlyFavs = false; els.favChip.setAttribute('aria-pressed', 'false'); }
+    paintFavs();
+  }
+
+  function toggleFav(appid, button) {
+    if (!account.id) {
+      pendingFav = appid;
+      openAuth('Connecte-toi pour garder ce jeu dans tes favoris.');
+      return;
+    }
+    const on = !account.favs.has(appid);
+    account.favs[on ? 'add' : 'delete'](appid);
+    saveFavs();
+    paintFavs();
+    if (on) {
+      button.classList.add('is-pop');
+      button.addEventListener('animationend', () => button.classList.remove('is-pop'), { once: true });
+    } else if (state.onlyFavs) {
+      refresh({ quick: true, keep: true, snap: false });
+    }
+  }
+
+  function showFavs(on) {
+    state.onlyFavs = on;
+    els.favChip.setAttribute('aria-pressed', on);
+    refresh({ snap: false });
+    if (on) els.deals.scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth', block: 'start' });
+  }
+
+  let toastTimer = 0;
+  function toast(message) {
+    els.toast.textContent = message;
+    els.toast.classList.add('is-on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => els.toast.classList.remove('is-on'), 3400);
+  }
+
+  function setAuthMode(signup) {
+    (signup ? els.authModeUp : els.authModeIn).checked = true;
+    els.authTitle.textContent = signup ? 'Créer un compte' : 'Connexion';
+    els.authSubmit.textContent = signup ? 'Créer mon compte' : 'Se connecter';
+    els.authConfirmRow.hidden = !signup;
+    els.authPass.autocomplete = signup ? 'new-password' : 'current-password';
+    els.authError.textContent = '';
+  }
+
+  function openAuth(hint) {
+    if (els.auth.open) return;
+    els.authForm.reset();
+    els.authPass.type = els.authPass2.type = 'password';
+    els.authPeek.textContent = 'Voir';
+    els.authPeek.setAttribute('aria-pressed', 'false');
+    setAuthMode(Object.keys(vault.all()).length === 0);   // aucun compte sur cet appareil : on propose l'inscription
+    els.authHint.textContent = hint || 'Garde tes jeux favoris et retrouve-les à chaque visite.';
+    els.auth.showModal();
+    els.authName.focus();
+  }
+
+  function bindAccount() {
+    els.accountBtn.addEventListener('click', () => { if (account.id) els.menu.togglePopover(); else openAuth(); });
+    els.menuFavs.addEventListener('click', () => { els.menu.hidePopover(); showFavs(true); });
+    els.menuLogout.addEventListener('click', () => {
+      const name = account.name;
+      els.menu.hidePopover();
+      closeSession();
+      toast(`À bientôt, ${name} !`);
+    });
+    els.menuDelete.addEventListener('click', () => {
+      if (!els.menuDelete.dataset.armed) {          // premier clic : on demande confirmation
+        els.menuDelete.dataset.armed = '1';
+        els.menuDelete.textContent = 'Confirmer la suppression';
+        return;
+      }
+      const all = vault.all();
+      delete all[slot(account.id)];
+      vault.save(all);
+      els.menu.hidePopover();
+      closeSession();
+      toast('Compte supprimé de cet appareil.');
+    });
+    els.menu.addEventListener('toggle', () => {
+      delete els.menuDelete.dataset.armed;
+      els.menuDelete.textContent = 'Supprimer ce compte';
+    });
+    els.favChip.addEventListener('click', () => showFavs(!state.onlyFavs));
+
+    els.grid.addEventListener('click', e => {
+      const button = e.target.closest('.card__fav');
+      if (button) toggleFav(+button.dataset.fav, button);
+    });
+
+    $$('input[name="authMode"]').forEach(radio => radio.addEventListener('change', () => setAuthMode(els.authModeUp.checked)));
+    els.authClose.addEventListener('click', () => els.auth.close());
+    els.auth.addEventListener('close', () => { pendingFav = 0; });
+    els.auth.addEventListener('click', e => {       // clic à côté de la fenêtre : on la ferme
+      if (e.target !== els.auth) return;
+      const box = els.auth.getBoundingClientRect();
+      if (e.clientX < box.left || e.clientX > box.right || e.clientY < box.top || e.clientY > box.bottom) els.auth.close();
+    });
+    els.authPeek.addEventListener('click', () => {
+      const show = els.authPass.type === 'password';
+      els.authPass.type = els.authPass2.type = show ? 'text' : 'password';
+      els.authPeek.textContent = show ? 'Cacher' : 'Voir';
+      els.authPeek.setAttribute('aria-pressed', show);
+    });
+
+    els.authForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const signup = els.authModeUp.checked;
+      const name = els.authName.value.trim(), password = els.authPass.value;
+      const fail = message => { els.authError.textContent = message; };
+      if (!NAME_RULE.test(name)) return fail('Choisis un pseudo de 3 à 20 caractères : lettres, chiffres, tiret ou underscore.');
+      if (password.length < 6) return fail('Le mot de passe doit faire au moins 6 caractères.');
+      if (signup && password !== els.authPass2.value) return fail('Les deux mots de passe ne sont pas identiques.');
+      if (!window.crypto || !crypto.subtle) return fail('Ce navigateur ne peut pas protéger un mot de passe sur cette page. Ouvre le site par son adresse en https.');
+      els.authSubmit.disabled = true;
+      try {
+        await (signup ? signUp(name, password) : signIn(name, password));
+      } catch (error) {
+        return fail(error.message);
+      } finally {
+        els.authSubmit.disabled = false;
+      }
+      if (pendingFav) { account.favs.add(pendingFav); saveFavs(); paintFavs(); }
+      els.auth.close();
+      toast(signup ? `Bienvenue, ${account.name} ! Ton compte est créé.` : `Te revoilà, ${account.name} !`);
+    });
   }
 
   /* ------------------------------------------------------------------ effets */
@@ -594,6 +855,8 @@
   els.rail.innerHTML = '<div class="poster poster--ghost"><span class="poster__in"></span></div>'.repeat(8);
   paintDials();
   bindControls();
+  bindAccount();
+  restoreSession();
   bindTilt(els.grid, '.card', 7);
   bindTilt(els.rail, '.poster', 12);
   bindSpot();

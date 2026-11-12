@@ -1,5 +1,5 @@
 # Met le site en ligne sur GitHub Pages et garde les prix à jour.
-# À chaque exécution : relevé des promos Steam -> public/deals.json -> publication du dossier public/.
+# À chaque publication : relevé des promos Steam -> public/deals.json -> mise en ligne du dossier public/.
 # Si le relevé échoue, rien n'est publié : la version déjà en ligne reste en place.
 name: Publier le site
 
@@ -7,21 +7,50 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "7,37 * * * *"   # toutes les 30 minutes
+    # GitHub saute souvent des passages planifiés. On en demande donc un toutes les 10 minutes,
+    # et la tâche « verifier » arrête ceux qui arrivent alors que les prix ont moins de 25 minutes.
+    - cron: "4,14,24,34,44,54 * * * *"
   workflow_dispatch:          # bouton « Run workflow » de l'onglet Actions
 
 permissions:
   contents: read
   pages: write
   id-token: write
-  actions: write              # pour la dernière étape (garder la planification active)
+  actions: write              # pour l'étape « Garder la planification active »
 
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
+  # Décide s'il faut publier : toujours après un envoi de fichiers ou un lancement manuel ;
+  # pour un passage planifié, seulement si les prix en ligne ont au moins 25 minutes.
+  verifier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      publier: ${{ steps.age.outputs.publier }}
+    steps:
+      - name: Regarder l'âge des prix en ligne
+        id: age
+        run: |
+          python3 - <<'EOF' | tee -a "$GITHUB_OUTPUT"
+          import os, time, urllib.request
+          proprietaire, depot = os.environ["GITHUB_REPOSITORY"].split("/")
+          minutes = 9999
+          try:
+              with urllib.request.urlopen(f"https://{proprietaire}.github.io/{depot}/releve.txt", timeout=20) as reponse:
+                  minutes = (time.time() - int(reponse.read().decode().strip())) / 60
+          except Exception:
+              pass
+          planifie = os.environ["GITHUB_EVENT_NAME"] == "schedule"
+          print(f"minutes={minutes:.0f}")
+          print(f"publier={'non' if planifie and minutes < 25 else 'oui'}")
+          EOF
+
   publier:
+    needs: verifier
+    if: needs.verifier.outputs.publier != 'non'    # en cas de doute, on publie
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
