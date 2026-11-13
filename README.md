@@ -16,6 +16,8 @@ Projet indépendant, sans lien avec Valve. Steam est une marque de Valve Corpora
 
 Le site n'a pas de serveur : un compte créé sur le site est enregistré dans le navigateur du visiteur, sur son appareil, avec ses favoris. Rien n'est envoyé sur Internet, et un compte n'existe donc que sur l'appareil où il a été créé. Le mot de passe n'est jamais gardé tel quel, seulement son empreinte.
 
+Les boutons Facebook, Google, Apple et Discord sont affichés mais pas encore actifs : ces connexions demandent un service de comptes en ligne et une inscription comme développeur auprès de chaque service.
+
 ## Sur son ordinateur
 
 ```

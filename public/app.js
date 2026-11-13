@@ -35,7 +35,8 @@
     menu: $('#accountMenu'), menuName: $('#menuName'), menuFavs: $('#menuFavs'), menuFavCount: $('#menuFavCount'),
     menuLogout: $('#menuLogout'), menuDelete: $('#menuDelete'),
     auth: $('#auth'), authTitle: $('#authTitle'), authHint: $('#authHint'), authForm: $('#authForm'),
-    authModeIn: $('#authModeIn'), authModeUp: $('#authModeUp'), authName: $('#authName'), authPass: $('#authPass'),
+    authSwitch: $('#authSwitch'), authLost: $('#authLost'), authSocial: $('#authSocial'),
+    authName: $('#authName'), authPass: $('#authPass'),
     authPass2: $('#authPass2'), authConfirmRow: $('#authConfirmRow'), authPeek: $('#authPeek'),
     authError: $('#authError'), authSubmit: $('#authSubmit'), authClose: $('#authClose'), toast: $('#toast'),
   };
@@ -534,7 +535,8 @@
      que son empreinte (PBKDF2), recalculée à chaque connexion. */
   const ACCOUNTS_KEY = 'sous30:comptes';
   const SESSION_KEY = 'sous30:session';
-  const NAME_RULE = /^[\p{L}\p{N}_-]{3,20}$/u;
+  const EMAIL_RULE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  let authSignup = false;      // la fenêtre est-elle en mode « créer un compte » ?
   const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
   const USER_ICON = '<svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
   const account = { id: '', name: '', favs: new Set() };   // compte connecté (id vide : personne)
@@ -568,10 +570,11 @@
     return toBase64(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 150000 }, material, 256));
   }
 
-  async function signUp(name, password) {
-    const id = name.toLowerCase(), all = vault.all();
-    if (all[slot(id)]) throw new Error('Ce pseudo est déjà pris sur cet appareil. Connecte-toi, ou choisis-en un autre.');
+  async function signUp(email, password) {
+    const id = email.toLowerCase(), all = vault.all();
+    if (all[slot(id)]) throw new Error('Cet e-mail a déjà un compte sur cet appareil. Connecte-toi.');
     const salt = crypto.getRandomValues(new Uint8Array(16));
+    const name = email.split('@')[0];      // nom affiché : la partie avant le @
     all[slot(id)] = { name, salt: toBase64(salt), hash: await fingerprint(password, salt), favs: [], created: Date.now() };
     if (!vault.save(all)) throw new Error('Ce navigateur refuse d’enregistrer des données : impossible de créer un compte ici.');
     openSession(id, all[slot(id)]);
@@ -579,7 +582,7 @@
 
   async function signIn(name, password) {
     const id = name.toLowerCase(), found = vault.all()[slot(id)];
-    if (!found) throw new Error(`Aucun compte « ${name} » sur cet appareil. Les comptes ne sont pas partagés entre appareils : crée-le avec l’onglet Inscription.`);
+    if (!found) throw new Error(`Aucun compte « ${name} » sur cet appareil. Les comptes ne sont pas partagés entre appareils : crée-le avec « Pas encore de compte ? ».`);
     if (await fingerprint(password, fromBase64(found.salt)) !== found.hash) throw new Error('Mot de passe incorrect.');
     openSession(id, found);
   }
@@ -673,23 +676,36 @@
     toastTimer = setTimeout(() => els.toast.classList.remove('is-on'), 3400);
   }
 
+  // Message sous les champs : une erreur (rouge) ou une simple information (gris clair).
+  function authSay(message, info = false) {
+    els.authError.textContent = message;
+    els.authError.classList.toggle('is-info', info);
+  }
+
   function setAuthMode(signup) {
-    (signup ? els.authModeUp : els.authModeIn).checked = true;
-    els.authTitle.textContent = signup ? 'Créer un compte' : 'Connexion';
+    authSignup = signup;
+    els.authTitle.textContent = signup ? 'Inscription' : 'Connexion';
     els.authSubmit.textContent = signup ? 'Créer mon compte' : 'Se connecter';
+    els.authSwitch.textContent = signup ? 'Déjà un compte ?' : 'Pas encore de compte ?';
+    els.authLost.hidden = signup;
     els.authConfirmRow.hidden = !signup;
     els.authPass.autocomplete = signup ? 'new-password' : 'current-password';
-    els.authError.textContent = '';
+    authSay('');
+  }
+
+  function showPassword(show) {
+    els.authPass.type = els.authPass2.type = show ? 'text' : 'password';
+    els.authPeek.setAttribute('aria-pressed', show);
+    els.authPeek.setAttribute('aria-label', show ? 'Cacher le mot de passe' : 'Afficher le mot de passe');
   }
 
   function openAuth(hint) {
     if (els.auth.open) return;
     els.authForm.reset();
-    els.authPass.type = els.authPass2.type = 'password';
-    els.authPeek.textContent = 'Voir';
-    els.authPeek.setAttribute('aria-pressed', 'false');
+    showPassword(false);
     setAuthMode(Object.keys(vault.all()).length === 0);   // aucun compte sur cet appareil : on propose l'inscription
-    els.authHint.textContent = hint || 'Garde tes jeux favoris et retrouve-les à chaque visite.';
+    els.authHint.textContent = hint || '';
+    els.authHint.hidden = !hint;
     els.auth.showModal();
     els.authName.focus();
   }
@@ -727,7 +743,14 @@
       if (button) toggleFav(+button.dataset.fav, button);
     });
 
-    $$('input[name="authMode"]').forEach(radio => radio.addEventListener('change', () => setAuthMode(els.authModeUp.checked)));
+    els.authSwitch.addEventListener('click', () => { setAuthMode(!authSignup); els.authName.focus(); });
+    // Sans serveur, impossible d'envoyer un e-mail de récupération : on le dit clairement.
+    els.authLost.addEventListener('click', () => authSay('Ton compte est enregistré sur cet appareil : son mot de passe ne peut pas être retrouvé. Tu peux créer un nouveau compte avec « Pas encore de compte ? ».', true));
+    // Facebook, Google, Apple, Discord : ces connexions demandent un service de comptes en ligne, pas encore branché.
+    els.authSocial.addEventListener('click', e => {
+      const button = e.target.closest('[data-social]');
+      if (button) authSay(`La connexion avec ${button.dataset.social} n’est pas encore activée. Utilise ton e-mail pour l’instant.`, true);
+    });
     els.authClose.addEventListener('click', () => els.auth.close());
     els.auth.addEventListener('close', () => { pendingFav = 0; });
     els.auth.addEventListener('click', e => {       // clic à côté de la fenêtre : on la ferme
@@ -735,19 +758,15 @@
       const box = els.auth.getBoundingClientRect();
       if (e.clientX < box.left || e.clientX > box.right || e.clientY < box.top || e.clientY > box.bottom) els.auth.close();
     });
-    els.authPeek.addEventListener('click', () => {
-      const show = els.authPass.type === 'password';
-      els.authPass.type = els.authPass2.type = show ? 'text' : 'password';
-      els.authPeek.textContent = show ? 'Cacher' : 'Voir';
-      els.authPeek.setAttribute('aria-pressed', show);
-    });
+    els.authPeek.addEventListener('click', () => showPassword(els.authPass.type === 'password'));
 
     els.authForm.addEventListener('submit', async e => {
       e.preventDefault();
-      const signup = els.authModeUp.checked;
+      const signup = authSignup;
       const name = els.authName.value.trim(), password = els.authPass.value;
-      const fail = message => { els.authError.textContent = message; };
-      if (!NAME_RULE.test(name)) return fail('Choisis un pseudo de 3 à 20 caractères : lettres, chiffres, tiret ou underscore.');
+      const fail = message => authSay(message);
+      // À l'inscription il faut un e-mail ; à la connexion on accepte aussi un ancien pseudo.
+      if (signup ? !EMAIL_RULE.test(name) : !name) return fail('Écris ton adresse e-mail, par exemple prenom@exemple.fr.');
       if (password.length < 6) return fail('Le mot de passe doit faire au moins 6 caractères.');
       if (signup && password !== els.authPass2.value) return fail('Les deux mots de passe ne sont pas identiques.');
       if (!window.crypto || !crypto.subtle) return fail('Ce navigateur ne peut pas protéger un mot de passe sur cette page. Ouvre le site par son adresse en https.');
