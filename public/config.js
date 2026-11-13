@@ -3,5 +3,5 @@
 window.SOUS30 = {
   supabaseUrl: 'https://cyezicjuhpulktyivyme.supabase.co',
   supabaseKey: 'sb_publishable_xyUoof01wzlBHvqIWWFCbg_6ECYHRS_',   // clé « publishable » : publique par nature. Jamais la clé secrète.
-  providers: [],        // réseaux activés pour la connexion, par exemple ['discord', 'google']
+  providers: ['discord'],   // réseaux activés pour la connexion, par exemple ['discord', 'google']
 };
