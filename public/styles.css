@@ -1603,6 +1603,11 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { outline: 2px solid var
 .auth__link { padding: 4px 0; border: 0; background: none; font: 500 .95rem/1.2 var(--font-ui); color: #fff; }
 .auth__link:hover { text-decoration: underline; text-underline-offset: 4px; }
 .auth__note { margin-top: 18px; font-size: .78rem; line-height: 1.45; color: #9a9aa3; }
+/* choix d'un nouveau mot de passe (après « Mot de passe oublié ? ») : on ne garde que les deux champs */
+.auth--new .auth__social,
+.auth--new .auth__or,
+.auth--new .auth__links,
+.auth--new .entry:has(#authName) { display: none; }
 
 @media (max-width: 520px) {
   .auth { padding: 28px 22px 24px; }

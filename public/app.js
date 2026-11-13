@@ -35,7 +35,7 @@
     menu: $('#accountMenu'), menuName: $('#menuName'), menuFavs: $('#menuFavs'), menuFavCount: $('#menuFavCount'),
     menuLogout: $('#menuLogout'), menuDelete: $('#menuDelete'),
     auth: $('#auth'), authTitle: $('#authTitle'), authHint: $('#authHint'), authForm: $('#authForm'),
-    authSwitch: $('#authSwitch'), authLost: $('#authLost'), authSocial: $('#authSocial'),
+    authSwitch: $('#authSwitch'), authLost: $('#authLost'), authSocial: $('#authSocial'), authNote: $('#authNote'),
     authName: $('#authName'), authPass: $('#authPass'),
     authPass2: $('#authPass2'), authConfirmRow: $('#authConfirmRow'), authPeek: $('#authPeek'),
     authError: $('#authError'), authSubmit: $('#authSubmit'), authClose: $('#authClose'), toast: $('#toast'),
@@ -537,6 +537,84 @@
   const SESSION_KEY = 'sous30:session';
   const EMAIL_RULE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   let authSignup = false;      // la fenêtre est-elle en mode « créer un compte » ?
+  let authNew = false;         // … ou en mode « choisir un nouveau mot de passe » ?
+
+  /* Comptes en ligne : actifs seulement si config.js contient l'adresse et la clé publique du projet Supabase.
+     Sinon tout ce qui suit reste en sommeil et les comptes vivent dans le navigateur. */
+  const CONFIG = window.SOUS30 || {};
+  const ONLINE = Boolean(CONFIG.supabaseUrl && CONFIG.supabaseKey);
+  const PROVIDERS = (CONFIG.providers || []).map(name => String(name).toLowerCase());
+  const SUPABASE_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js';
+  const HOME = location.origin + location.pathname;      // adresse où revenir après une connexion
+  let cloud = null, cloudReady = null, favTimer = 0;
+
+  function startCloud() {
+    cloudReady = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = SUPABASE_JS;
+      script.onload = resolve;
+      script.onerror = () => reject(new Error('Le service de comptes est injoignable. Réessaie dans un instant.'));
+      document.head.append(script);
+    }).then(() => {
+      cloud = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
+      cloud.auth.onAuthStateChange((event, session) => {
+        applyCloudUser(session ? session.user : null);
+        if (event === 'PASSWORD_RECOVERY') openAuth('', true);     // retour depuis l'e-mail « mot de passe oublié »
+      });
+    });
+    cloudReady.catch(() => {});
+  }
+
+  function applyCloudUser(user) {
+    if (!user) {
+      if (!account.id) return;
+      const wasFiltered = state.onlyFavs;
+      Object.assign(account, { id: '', name: '', favs: new Set() });
+      paintAccount();
+      if (wasFiltered) refresh({ snap: false });
+      return;
+    }
+    const meta = user.user_metadata || {};
+    const name = (meta.custom_claims && meta.custom_claims.global_name) || meta.full_name || meta.name
+      || meta.user_name || (user.email || '').split('@')[0] || 'Mon compte';
+    // Même compte déjà chargé : on garde les favoris en mémoire, plus récents que ceux du serveur.
+    const favs = account.id === user.id ? account.favs : new Set(Array.isArray(meta.favs) ? meta.favs : []);
+    Object.assign(account, { id: user.id, name, favs });
+    paintAccount();
+  }
+
+  function cloudMessage(error) {
+    const text = String((error && error.message) || '');
+    if (/invalid login credentials/i.test(text)) return 'E-mail ou mot de passe incorrect.';
+    if (/already (been )?registered/i.test(text)) return 'Cet e-mail a déjà un compte. Connecte-toi.';
+    if (/email not confirmed/i.test(text)) return 'Ton e-mail n’est pas encore confirmé : clique sur le lien reçu par e-mail.';
+    if ((error && error.status === 429) || /rate limit/i.test(text)) return 'Trop de demandes pour le moment. Réessaie dans quelques minutes.';
+    if (/should be different/i.test(text)) return 'Choisis un mot de passe différent de l’ancien.';
+    return `Ça n’a pas marché : ${text || 'erreur inconnue'}.`;
+  }
+
+  async function cloudSignUp(email, password) {
+    const { data, error } = await cloud.auth.signUp({ email, password, options: { emailRedirectTo: HOME } });
+    if (error) throw new Error(cloudMessage(error));
+    // Supabase répond sans erreur pour un e-mail déjà inscrit, mais avec une liste d'identités vide.
+    if (data.user && data.user.identities && data.user.identities.length === 0) throw new Error('Cet e-mail a déjà un compte. Connecte-toi.');
+    if (!data.session) return 'confirm';      // un e-mail de confirmation vient d'être envoyé
+    applyCloudUser(data.user);
+    return 'ok';
+  }
+
+  async function cloudSignIn(email, password) {
+    const { data, error } = await cloud.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(cloudMessage(error));
+    applyCloudUser(data.user);
+    return 'ok';
+  }
+
+  async function cloudNewPassword(password) {
+    const { error } = await cloud.auth.updateUser({ password });
+    if (error) throw new Error(cloudMessage(error));
+    return 'ok';
+  }
   const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
   const USER_ICON = '<svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
   const account = { id: '', name: '', favs: new Set() };   // compte connecté (id vide : personne)
@@ -571,6 +649,7 @@
   }
 
   async function signUp(email, password) {
+    if (ONLINE) return cloudSignUp(email, password);
     const id = email.toLowerCase(), all = vault.all();
     if (all[slot(id)]) throw new Error('Cet e-mail a déjà un compte sur cet appareil. Connecte-toi.');
     const salt = crypto.getRandomValues(new Uint8Array(16));
@@ -581,6 +660,7 @@
   }
 
   async function signIn(name, password) {
+    if (ONLINE) return cloudSignIn(name, password);
     const id = name.toLowerCase(), found = vault.all()[slot(id)];
     if (!found) throw new Error(`Aucun compte « ${name} » sur cet appareil. Les comptes ne sont pas partagés entre appareils : crée-le avec « Pas encore de compte ? ».`);
     if (await fingerprint(password, fromBase64(found.salt)) !== found.hash) throw new Error('Mot de passe incorrect.');
@@ -596,12 +676,18 @@
   function closeSession() {
     const wasFiltered = state.onlyFavs;
     Object.assign(account, { id: '', name: '', favs: new Set() });
-    vault.setSession('');
+    if (ONLINE && cloud) cloud.auth.signOut();
+    else vault.setSession('');
     paintAccount();
     if (wasFiltered) refresh({ snap: false });
   }
 
   function restoreSession() {
+    if (ONLINE) {              // la session en ligne arrive toute seule dès que le service a répondu
+      startCloud();
+      paintAccount();
+      return;
+    }
     const id = vault.session();
     const record = id && vault.all()[slot(id)];
     if (record) Object.assign(account, { id, name: record.name, favs: new Set(record.favs || []) });
@@ -609,6 +695,11 @@
   }
 
   function saveFavs() {
+    if (ONLINE) {              // en ligne : les favoris sont rangés avec le compte, après une courte pause
+      clearTimeout(favTimer);
+      favTimer = setTimeout(() => { if (cloud && account.id) cloud.auth.updateUser({ data: { favs: [...account.favs] } }); }, 700);
+      return;
+    }
     const all = vault.all();
     if (!all[slot(account.id)]) return;
     all[slot(account.id)].favs = [...account.favs];
@@ -638,6 +729,7 @@
     else els.accountAvatar.innerHTML = USER_ICON;
     els.accountBtn.setAttribute('aria-label', on ? `Compte de ${account.name} : ouvrir le menu` : 'Se connecter ou créer un compte');
     els.menuName.textContent = account.name;
+    els.menuDelete.hidden = ONLINE;      // un compte en ligne ne peut pas être supprimé depuis le site
     els.favChip.hidden = !on;
     if (!on) { state.onlyFavs = false; els.favChip.setAttribute('aria-pressed', 'false'); }
     paintFavs();
@@ -682,14 +774,17 @@
     els.authError.classList.toggle('is-info', info);
   }
 
-  function setAuthMode(signup) {
+  // renew : choix d'un nouveau mot de passe, après le lien reçu par e-mail (comptes en ligne seulement)
+  function setAuthMode(signup, renew = false) {
     authSignup = signup;
-    els.authTitle.textContent = signup ? 'Inscription' : 'Connexion';
-    els.authSubmit.textContent = signup ? 'Créer mon compte' : 'Se connecter';
+    authNew = renew;
+    els.auth.classList.toggle('auth--new', renew);
+    els.authTitle.textContent = renew ? 'Nouveau mot de passe' : signup ? 'Inscription' : 'Connexion';
+    els.authSubmit.textContent = renew ? 'Enregistrer' : signup ? 'Créer mon compte' : 'Se connecter';
     els.authSwitch.textContent = signup ? 'Déjà un compte ?' : 'Pas encore de compte ?';
     els.authLost.hidden = signup;
-    els.authConfirmRow.hidden = !signup;
-    els.authPass.autocomplete = signup ? 'new-password' : 'current-password';
+    els.authConfirmRow.hidden = !(signup || renew);
+    els.authPass.autocomplete = signup || renew ? 'new-password' : 'current-password';
     authSay('');
   }
 
@@ -699,11 +794,12 @@
     els.authPeek.setAttribute('aria-label', show ? 'Cacher le mot de passe' : 'Afficher le mot de passe');
   }
 
-  function openAuth(hint) {
+  function openAuth(hint, renew = false) {
     if (els.auth.open) return;
     els.authForm.reset();
     showPassword(false);
-    setAuthMode(Object.keys(vault.all()).length === 0);   // aucun compte sur cet appareil : on propose l'inscription
+    // Comptes locaux : s'il n'y en a aucun sur cet appareil, on propose directement l'inscription.
+    setAuthMode(!renew && !ONLINE && Object.keys(vault.all()).length === 0, renew);
     els.authHint.textContent = hint || '';
     els.authHint.hidden = !hint;
     els.auth.showModal();
@@ -744,12 +840,39 @@
     });
 
     els.authSwitch.addEventListener('click', () => { setAuthMode(!authSignup); els.authName.focus(); });
-    // Sans serveur, impossible d'envoyer un e-mail de récupération : on le dit clairement.
-    els.authLost.addEventListener('click', () => authSay('Ton compte est enregistré sur cet appareil : son mot de passe ne peut pas être retrouvé. Tu peux créer un nouveau compte avec « Pas encore de compte ? ».', true));
-    // Facebook, Google, Apple, Discord : ces connexions demandent un service de comptes en ligne, pas encore branché.
-    els.authSocial.addEventListener('click', e => {
+    if (ONLINE) els.authNote.textContent = 'Ton compte et tes favoris sont enregistrés en ligne : tu les retrouves sur tous tes appareils.';
+
+    els.authLost.addEventListener('click', async () => {
+      if (!ONLINE) {     // sans serveur, impossible d'envoyer un e-mail de récupération : on le dit clairement
+        return authSay('Ton compte est enregistré sur cet appareil : son mot de passe ne peut pas être retrouvé. Tu peux créer un nouveau compte avec « Pas encore de compte ? ».', true);
+      }
+      const email = els.authName.value.trim();
+      if (!EMAIL_RULE.test(email)) return authSay('Écris d’abord ton adresse e-mail dans le premier champ, puis reclique ici.');
+      try {
+        await cloudReady;
+        const { error } = await cloud.auth.resetPasswordForEmail(email, { redirectTo: HOME });
+        if (error) throw new Error(cloudMessage(error));
+        authSay('Si un compte existe pour cette adresse, un e-mail vient de partir avec un lien pour choisir un nouveau mot de passe.', true);
+      } catch (error) {
+        authSay(error.message);
+      }
+    });
+
+    // Facebook, Google, Apple, Discord : seuls les réseaux listés dans config.js sont branchés.
+    els.authSocial.addEventListener('click', async e => {
       const button = e.target.closest('[data-social]');
-      if (button) authSay(`La connexion avec ${button.dataset.social} n’est pas encore activée. Utilise ton e-mail pour l’instant.`, true);
+      if (!button) return;
+      const provider = button.dataset.social.toLowerCase();
+      if (!ONLINE || !PROVIDERS.includes(provider)) {
+        return authSay(`La connexion avec ${button.dataset.social} n’est pas encore activée. Utilise ton e-mail pour l’instant.`, true);
+      }
+      try {
+        await cloudReady;
+        const { error } = await cloud.auth.signInWithOAuth({ provider, options: { redirectTo: HOME } });
+        if (error) throw new Error(cloudMessage(error));     // sinon le navigateur part vers la page du réseau
+      } catch (error) {
+        authSay(error.message);
+      }
     });
     els.authClose.addEventListener('click', () => els.auth.close());
     els.auth.addEventListener('close', () => { pendingFav = 0; });
@@ -762,25 +885,31 @@
 
     els.authForm.addEventListener('submit', async e => {
       e.preventDefault();
-      const signup = authSignup;
+      const signup = authSignup, renew = authNew;
       const name = els.authName.value.trim(), password = els.authPass.value;
       const fail = message => authSay(message);
-      // À l'inscription il faut un e-mail ; à la connexion on accepte aussi un ancien pseudo.
-      if (signup ? !EMAIL_RULE.test(name) : !name) return fail('Écris ton adresse e-mail, par exemple prenom@exemple.fr.');
+      // Il faut un e-mail, sauf pour se connecter à un compte local créé avec un ancien pseudo.
+      if (!renew && (signup || ONLINE ? !EMAIL_RULE.test(name) : !name)) return fail('Écris ton adresse e-mail, par exemple prenom@exemple.fr.');
       if (password.length < 6) return fail('Le mot de passe doit faire au moins 6 caractères.');
-      if (signup && password !== els.authPass2.value) return fail('Les deux mots de passe ne sont pas identiques.');
-      if (!window.crypto || !crypto.subtle) return fail('Ce navigateur ne peut pas protéger un mot de passe sur cette page. Ouvre le site par son adresse en https.');
+      if ((signup || renew) && password !== els.authPass2.value) return fail('Les deux mots de passe ne sont pas identiques.');
+      if (!ONLINE && (!window.crypto || !crypto.subtle)) return fail('Ce navigateur ne peut pas protéger un mot de passe sur cette page. Ouvre le site par son adresse en https.');
       els.authSubmit.disabled = true;
+      let outcome;
       try {
-        await (signup ? signUp(name, password) : signIn(name, password));
+        if (ONLINE) await cloudReady;
+        outcome = await (renew ? cloudNewPassword(password) : signup ? signUp(name, password) : signIn(name, password));
       } catch (error) {
         return fail(error.message);
       } finally {
         els.authSubmit.disabled = false;
       }
+      if (outcome === 'confirm') {
+        return authSay('Presque fini : ouvre l’e-mail que tu viens de recevoir et clique sur le lien pour activer ton compte.', true);
+      }
       if (pendingFav) { account.favs.add(pendingFav); saveFavs(); paintFavs(); }
       els.auth.close();
-      toast(signup ? `Bienvenue, ${account.name} ! Ton compte est créé.` : `Te revoilà, ${account.name} !`);
+      toast(renew ? 'Ton nouveau mot de passe est enregistré.'
+        : signup ? `Bienvenue, ${account.name} ! Ton compte est créé.` : `Te revoilà, ${account.name} !`);
     });
   }
 
