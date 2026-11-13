@@ -40,6 +40,10 @@
         <span class="live__dot" aria-hidden="true"></span>
         <span id="liveText">Chargement des prix…</span>
       </p>
+      <a class="tip" id="tipBtn" target="_blank" rel="noopener" aria-label="Tip me : soutenir le site par un don" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><path d="M6 1v3M10 1v3M14 1v3"/></svg>
+        <span>Tip me</span>
+      </a>
       <button type="button" class="account" id="accountBtn" aria-label="Se connecter ou créer un compte">
         <span class="account__avatar" id="accountAvatar" aria-hidden="true"></span>
         <span class="account__label" id="accountLabel">Connexion</span>
@@ -191,6 +195,7 @@
   <footer class="foot shell">
     <p class="credit">Made by <b>Daniel</b>, <b>Nicolas</b> and <b>Samuel</b></p>
     <p>Site et design © 2026 Daniel, Nicolas et Samuel. Tous droits réservés.</p>
+    <p id="tipFoot" hidden>Le site te plaît ? <a id="tipLink" target="_blank" rel="noopener">Tip me</a> : un petit don nous encourage à continuer.</p>
     <p>
       Prix relevés sur la boutique Steam France, en euros<span id="footTime"></span>. Ils peuvent changer à tout moment&nbsp;:
       le prix affiché sur Steam fait foi.

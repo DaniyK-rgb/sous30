@@ -1026,6 +1026,11 @@
   bindControls();
   bindAccount();
   restoreSession();
+  // Bouton « Tip me » : affiché seulement si config.js donne l'adresse de la page de dons.
+  if (/^https:\/\//.test(CONFIG.tipUrl || '')) {
+    $('#tipBtn').href = $('#tipLink').href = CONFIG.tipUrl;
+    $('#tipBtn').hidden = $('#tipFoot').hidden = false;
+  }
   bindTilt(els.grid, '.card', 7);
   bindTilt(els.rail, '.poster', 12);
   bindSpot();

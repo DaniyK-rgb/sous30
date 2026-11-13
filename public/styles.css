@@ -255,6 +255,24 @@ button { cursor: pointer; }
   min-width: 0;
 }
 
+/* bouton de don : présent en haut de page, mais plus discret que le bouton du compte */
+.tip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  font: 600 .82rem/1 var(--font-ui);
+  text-decoration: none;
+  color: var(--ink-2);
+  transition: color .25s, border-color .25s, background .25s;
+}
+.tip:hover { border-color: var(--t5); background: rgb(255 210 46 / .08); color: var(--t5); }
+.tip svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
 .account {
   anchor-name: --account;
   display: inline-flex;
@@ -1795,6 +1813,8 @@ a.chip { text-decoration: none; }
   .live { font-size: .68rem; }
   .account { padding: 0 5px; }
   .account__label { display: none; }
+  .tip { width: 38px; padding: 0; justify-content: center; }
+  .tip span { display: none; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stats > div { padding: 16px 12px; }
   .stats > div:nth-child(odd) { padding-left: 0; border-left: 0; }
