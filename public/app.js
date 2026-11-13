@@ -5,7 +5,7 @@
   'use strict';
 
   const CDN = 'https://shared.fastly.steamstatic.com/store_item_assets/';
-  const BATCH = 36;             // cartes ajoutées à chaque palier de défilement
+  const PAGE_SIZE = 24;         // jeux affichés par page
   const VISIBLE_GENRES = 14;    // genres affichés avant « + de genres »
   const MAX_PRICE = 30;
   const STORE = 'https://store.steampowered.com/';
@@ -28,7 +28,7 @@
     bars: $('#bars'), ticker: $('#ticker'), hot: $('#hot'), rail: $('#rail'),
     q: $('#q'), price: $('#price'), priceOut: $('#priceOut'), disc: $('#disc'), discOut: $('#discOut'),
     sort: $('#sort'), genres: $('#genres'), count: $('#count'), progress: $('#progress'), reset: $('#reset'),
-    grid: $('#grid'), sentinel: $('#sentinel'), empty: $('#empty'), fail: $('#fail'), failText: $('#failText'),
+    grid: $('#grid'), pager: $('#pager'), empty: $('#empty'), fail: $('#fail'), failText: $('#failText'),
     barAnchor: $('#barAnchor'), footTime: $('#footTime'), deals: $('#offres'),
     emptyTitle: $('#emptyTitle'), emptyText: $('#emptyText'), favChip: $('#favChip'), favCount: $('#favCount'),
     accountBtn: $('#accountBtn'), accountAvatar: $('#accountAvatar'), accountLabel: $('#accountLabel'),
@@ -46,7 +46,7 @@
     all: [], received: 0, total: 0, done: false, version: 0, updatedAt: 0,
     q: '', maxPrice: MAX_PRICE, minDisc: 0, minRev: 0, plats: new Set(), genres: new Set(), sort: 'pop',
     onlyFavs: false,
-    view: [], shown: 0,
+    view: [], page: 1,
   };
 
   /* ------------------------------------------------------------------ outils */
@@ -187,29 +187,47 @@
     state.view = out;
   }
 
-  /* ------------------------------------------------------------------ grille */
-  const sentinelWatch = new IntersectionObserver(entries => {
-    if (entries.some(entry => entry.isIntersecting)) { appendBatch(); rearm(); }
-  }, { rootMargin: '1200px 0px' });
+  /* ------------------------------------------------------------------ grille et pages */
+  const pageCount = () => Math.max(1, Math.ceil(state.view.length / PAGE_SIZE));
 
-  function rearm() {
-    sentinelWatch.unobserve(els.sentinel);
-    if (state.shown < state.view.length) sentinelWatch.observe(els.sentinel);
+  function renderGrid({ quick = false } = {}) {
+    state.page = Math.min(Math.max(1, state.page), pageCount());
+    const start = (state.page - 1) * PAGE_SIZE;
+    els.grid.innerHTML = state.view.slice(start, start + PAGE_SIZE)
+      .map((item, i) => cardHTML(item, i, quick ? '' : 'intro')).join('');
+    renderPager();
   }
 
-  function appendBatch() {
-    const slice = state.view.slice(state.shown, state.shown + BATCH);
-    if (!slice.length) return;
-    els.grid.insertAdjacentHTML('beforeend', slice.map((item, i) => cardHTML(item, i, 'scroll')).join(''));
-    state.shown += slice.length;
+  // Numéros proposés : la première page, la dernière, et les voisines de la page affichée.
+  function renderPager() {
+    const pages = pageCount(), current = state.page;
+    els.pager.hidden = pages < 2;
+    if (pages < 2) { els.pager.innerHTML = ''; return; }
+    const reach = innerWidth < 560 ? 1 : 2;
+    const wanted = new Set([1, pages]);
+    for (let p = current - reach; p <= current + reach; p++) if (p >= 1 && p <= pages) wanted.add(p);
+    let html = `<button type="button" class="pager__btn pager__btn--step" data-page="${current - 1}"${current === 1 ? ' disabled' : ''}>← Précédent</button>`;
+    let previous = 0;
+    for (const p of [...wanted].sort((a, b) => a - b)) {
+      if (p - previous > 1) html += '<span class="pager__gap" aria-hidden="true">…</span>';
+      html += `<button type="button" class="pager__btn" data-page="${p}" aria-label="Page ${p}"${p === current ? ' aria-current="page"' : ''}>${int(p)}</button>`;
+      previous = p;
+    }
+    html += `<button type="button" class="pager__btn pager__btn--step" data-page="${current + 1}"${current === pages ? ' disabled' : ''}>Suivant →</button>`;
+    html += `<p class="pager__info">Page ${int(current)} sur ${int(pages)}</p>`;
+    els.pager.innerHTML = html;
   }
 
-  function renderGrid({ quick = false, count = BATCH } = {}) {
-    const slice = state.view.slice(0, count);
-    els.grid.innerHTML = slice.map((item, i) => cardHTML(item, i, quick ? '' : 'intro')).join('');
-    state.shown = slice.length;
-    rearm();
+  // Changer de page : on affiche les jeux de cette page et on remonte au début de la liste.
+  function goToPage(page) {
+    state.page = page;
+    renderGrid();
+    window.scrollTo({ top: window.scrollY + els.barAnchor.getBoundingClientRect().top - 4, behavior: 'instant' });
   }
+  els.pager.addEventListener('click', e => {
+    const button = e.target.closest('[data-page]');
+    if (button && !button.disabled) goToPage(+button.dataset.page);
+  });
 
   /* Après un changement de filtre, on revient au début de la liste si on était plus bas. */
   function snapToList() {
@@ -217,9 +235,11 @@
     if (top < 0) window.scrollTo({ top: window.scrollY + top - 4, behavior: 'instant' });
   }
 
+  // keep : on reste sur la page affichée ; sinon un changement de filtre ramène à la page 1.
   function refresh({ quick = false, keep = false, snap = true } = {}) {
     applyFilters();
-    renderGrid({ quick, count: keep ? Math.max(BATCH, state.shown) : BATCH });
+    if (!keep) state.page = 1;
+    renderGrid({ quick });
     syncUI();
     if (snap) snapToList();
   }
@@ -469,10 +489,11 @@
     if (first) {
       buildChips();
       refresh({ snap: false });
-    } else if (state.sort === 'pop' && state.shown > 0) {
-      applyFilters();          // les nouvelles offres s'ajoutent à la suite : rien à redessiner
+    } else if (state.sort === 'pop' && els.grid.querySelector('.card')) {
+      applyFilters();          // les nouvelles offres s'ajoutent à la suite : la page affichée ne bouge pas
       syncUI();
-      rearm();
+      if (els.grid.querySelectorAll('.card').length < PAGE_SIZE) renderGrid({ quick: true });
+      else renderPager();
     } else {
       refresh({ quick: true, keep: true, snap: false });
     }
