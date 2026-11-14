@@ -108,7 +108,8 @@ def compose(sender: str, to: str, games: list[dict], lang: str = "fr") -> EmailM
         link = f"{STORE}{item['u']}/"
         price = (f"€{item['f'] / 100:.2f} instead of €{item['o'] / 100:.2f} (−{item['d']}%)" if en
                  else f"{euros(item['f'])} au lieu de {euros(item['o'])} (−{item['d']} %)")
-        lines.append(f"- {item['t']} : {price}\n  {link}")
+        lines.append(f"- {item['t']}{':' if en else ' :'} {price}
+  {link}")
         rows.append(
             f'<li style="margin:0 0 12px"><a href="{html.escape(link)}" style="color:#ffd22e;font-weight:700">'
             f'{html.escape(item["t"])}</a><br>{html.escape(price)}</li>')
