@@ -1272,7 +1272,8 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { outline: 2px solid var
 .card__ends.is-soon { background: var(--t5); color: var(--ink-hot); }
 
 /* cœur des favoris */
-.card__fav {
+.card__fav,
+.card__share {
   position: absolute;
   top: 10px;
   left: 10px;
@@ -1290,7 +1291,17 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { outline: 2px solid var
   transition: background .25s, box-shadow .25s, scale .3s var(--ease-spring);
 }
 .card__fav::after { content: ""; position: absolute; inset: -6px; }   /* zone de toucher plus large */
-.card__fav svg {
+/* bouton de partage : à côté du cœur ; à la souris, il n'apparaît qu'au survol de la carte */
+.card__share { left: 52px; transition: background .25s, opacity .25s, scale .3s var(--ease-spring); }
+.card__share::after { content: ""; position: absolute; inset: -6px -6px -6px -2px; }
+.card__share:hover { scale: 1.14; background: rgb(5 3 26 / .92); }
+@media (hover: hover) {
+  .card__share { opacity: 0; }
+  .card:hover .card__share,
+  .card__share:focus-visible { opacity: 1; }
+}
+.card__fav svg,
+.card__share svg {
   width: 17px;
   height: 17px;
   fill: none;

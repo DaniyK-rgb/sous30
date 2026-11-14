@@ -140,6 +140,7 @@
       + `<span class="card__body"><span class="card__title">${esc(item.t)}</span>${review}`
       + `<span class="card__foot"><span class="price"><s>${eur(item.o)}</s><b>${final}</b></span><span class="plats">${plats}</span></span></span></a>`
       + `<button type="button" class="card__fav" data-fav="${item.a}" aria-pressed="${fav}" aria-label="${esc(favLabel(item.t, fav))}">${HEART}</button>`
+      + `<button type="button" class="card__share" data-share="${item.a}" title="Partager" aria-label="Partager ${esc(item.t)}">${SHARE}</button>`
       + '<span class="card__sheen"></span></div></article>';
   }
 
@@ -167,6 +168,81 @@
 
   const isFiltered = () => Boolean(state.q || state.maxPrice < MAX_PRICE || state.minDisc || state.minRev
     || state.plats.size || state.genres.size || state.onlyFavs);
+
+  /* ------------------------------------------------------------------ filtres dans l'adresse, partage */
+  const URL_KEYS = ['q', 'prix', 'promo', 'avis', 'tri', 'plat', 'genre', 'page'];
+
+  // Les filtres en cours, sous la forme qu'ils prennent dans l'adresse (les favoris, personnels, n'y vont pas).
+  function filterParams() {
+    const params = new URLSearchParams();
+    if (state.q) params.set('q', state.q);
+    if (state.maxPrice < MAX_PRICE) params.set('prix', state.maxPrice);
+    if (state.minDisc) params.set('promo', state.minDisc);
+    if (state.minRev) params.set('avis', state.minRev);
+    if (state.sort !== 'pop') params.set('tri', state.sort);
+    if (state.plats.size) params.set('plat', [...state.plats].join(''));
+    if (state.genres.size) params.set('genre', [...state.genres].join(','));
+    return params;
+  }
+
+  // On ne touche qu'à nos propres réglages : le reste de l'adresse (retour d'une connexion…) est conservé.
+  function writeURL() {
+    const url = new URL(location.href);
+    for (const key of URL_KEYS) url.searchParams.delete(key);
+    for (const [key, value] of filterParams()) url.searchParams.set(key, value);
+    if (state.page > 1) url.searchParams.set('page', state.page);
+    try { history.replaceState(history.state, '', url); } catch { /* adresse figée : tant pis */ }
+  }
+
+  function readURL() {
+    const params = new URLSearchParams(location.search);
+    const num = (key, min, max, fallback) => {
+      const n = parseInt(params.get(key), 10);
+      return n >= min && n <= max ? n : fallback;
+    };
+    state.q = (params.get('q') || '').trim().slice(0, 80);
+    state.maxPrice = num('prix', 1, MAX_PRICE, MAX_PRICE);
+    state.minDisc = Math.round(num('promo', 0, 90, 0) / 5) * 5;
+    state.minRev = [70, 85, 95].includes(+params.get('avis')) ? +params.get('avis') : 0;
+    if (Object.hasOwn(sorters, params.get('tri') || '')) state.sort = params.get('tri');
+    for (const key of params.get('plat') || '') if ('mld'.includes(key)) state.plats.add(key);
+    for (const id of (params.get('genre') || '').split(',')) if (GENRES.has(+id)) state.genres.add(+id);
+    state.page = num('page', 1, 99999, 1);
+
+    els.q.value = state.q;
+    els.price.value = state.maxPrice;
+    els.disc.value = state.minDisc;
+    $(`#rev${state.minRev}`).checked = true;
+    els.sort.value = state.sort;
+    $$('[data-plat]').forEach(chip => chip.setAttribute('aria-pressed', state.plats.has(chip.dataset.plat)));
+  }
+
+  // Sur téléphone : la feuille de partage du système. Ailleurs : le lien est copié.
+  async function share(text, url) {
+    if (navigator.share && matchMedia('(pointer: coarse)').matches) {
+      try { await navigator.share({ title: 'Sous 30', text, url }); } catch { /* partage annulé */ }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast('Lien copié. Colle-le où tu veux.');
+    } catch {
+      toast('Copie impossible ici : copie l’adresse en haut du navigateur.');
+    }
+  }
+
+  function shareGame(appid) {
+    const item = state.all.find(entry => entry.a === appid);
+    if (!item) return;
+    const params = new URLSearchParams({ q: item.t });
+    share(`${item.t} à ${eur(item.f)} au lieu de ${eur(item.o)} (−${item.d} %) sur Steam`, `${HOME}?${params}`);
+  }
+
+  function shareFilters() {
+    const query = filterParams().toString();
+    const shown = state.view.length;
+    share(`${int(shown)} promo${shown > 1 ? 's' : ''} Steam à moins de ${state.maxPrice} €`, HOME + (query ? `?${query}` : ''));
+  }
 
   function applyFilters() {
     const maxCents = state.maxPrice * 100;
@@ -222,6 +298,7 @@
   function goToPage(page) {
     state.page = page;
     renderGrid();
+    writeURL();
     window.scrollTo({ top: window.scrollY + els.barAnchor.getBoundingClientRect().top - 4, behavior: 'instant' });
   }
   els.pager.addEventListener('click', e => {
@@ -241,6 +318,7 @@
     if (!keep) state.page = 1;
     renderGrid({ quick });
     syncUI();
+    writeURL();
     if (snap) snapToList();
   }
 
@@ -409,6 +487,7 @@
     });
 
     els.reset.addEventListener('click', resetFilters);
+    $('#shareBtn').addEventListener('click', shareFilters);
     $('#resetEmpty').addEventListener('click', resetFilters);
     $('#retry').addEventListener('click', load);
 
@@ -488,7 +567,7 @@
     updateLive();
     if (first) {
       buildChips();
-      refresh({ snap: false });
+      refresh({ snap: false, keep: true });     // keep : la page demandée dans l'adresse est respectée
     } else if (state.sort === 'pop' && els.grid.querySelector('.card')) {
       applyFilters();          // les nouvelles offres s'ajoutent à la suite : la page affichée ne bouge pas
       syncUI();
@@ -637,7 +716,8 @@
     return 'ok';
   }
   const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
-  const USER_ICON = '<svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+  const SHARE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>';
+  const USER_ICON ='<svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
   const account = { id: '', name: '', favs: new Set() };   // compte connecté (id vide : personne)
   let pendingFav = 0;                                      // jeu à mettre en favori une fois connecté
 
@@ -857,7 +937,9 @@
 
     els.grid.addEventListener('click', e => {
       const button = e.target.closest('.card__fav');
-      if (button) toggleFav(+button.dataset.fav, button);
+      if (button) return toggleFav(+button.dataset.fav, button);
+      const shareButton = e.target.closest('.card__share');
+      if (shareButton) shareGame(+shareButton.dataset.share);
     });
 
     els.authSwitch.addEventListener('click', () => { setAuthMode(!authSignup); els.authName.focus(); });
@@ -1020,6 +1102,7 @@
 
   /* ------------------------------------------------------------------ démarrage */
   buildBars();
+  readURL();
   els.grid.innerHTML = '<div class="ghost"></div>'.repeat(12);
   els.rail.innerHTML = '<div class="poster poster--ghost"><span class="poster__in"></span></div>'.repeat(8);
   paintDials();
