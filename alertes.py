@@ -91,25 +91,41 @@ def wanted(account: dict, back: dict[int, dict]) -> list[dict]:
     return sorted(games, key=lambda item: -item["d"])
 
 
-def compose(sender: str, to: str, games: list[dict]) -> EmailMessage:
+def compose(sender: str, to: str, games: list[dict], lang: str = "fr") -> EmailMessage:
+    """L'e-mail d'alerte, en français ou en anglais (lang = "en") selon la langue du site choisie par le compte."""
+    en = lang == "en"
     count = len(games)
     first = games[0]
-    subject = (f"{first['t']} est de retour en promo : −{first['d']} %" if count == 1
-               else f"{count} de tes favoris sont de retour en promo")
+    if en:
+        subject = (f"{first['t']} is back on sale: −{first['d']}%" if count == 1
+                   else f"{count} of your favourites are back on sale")
+    else:
+        subject = (f"{first['t']} est de retour en promo : −{first['d']} %" if count == 1
+                   else f"{count} de tes favoris sont de retour en promo")
     shown, more = games[:MAX_GAMES], count - MAX_GAMES
     lines, rows = [], []
     for item in shown:
         link = f"{STORE}{item['u']}/"
-        price = f"{euros(item['f'])} au lieu de {euros(item['o'])} (−{item['d']} %)"
+        price = (f"€{item['f'] / 100:.2f} instead of €{item['o'] / 100:.2f} (−{item['d']}%)" if en
+                 else f"{euros(item['f'])} au lieu de {euros(item['o'])} (−{item['d']} %)")
         lines.append(f"- {item['t']} : {price}\n  {link}")
         rows.append(
             f'<li style="margin:0 0 12px"><a href="{html.escape(link)}" style="color:#ffd22e;font-weight:700">'
             f'{html.escape(item["t"])}</a><br>{html.escape(price)}</li>')
-    extra = f"… et {more} autre{'s' if more > 1 else ''} sur le site." if more > 0 else ""
-    intro = "Un jeu que tu as mis en favori est de retour en promo :" if count == 1 \
-        else "Des jeux que tu as mis en favori sont de retour en promo :"
-    stop = "Pour ne plus recevoir ces e-mails : ouvre le site, clique sur ton nom en haut à droite, " \
-           "puis sur « Alertes par e-mail » pour le passer sur « Non »."
+    if en:
+        extra = f"… and {more} more on the site." if more > 0 else ""
+        intro = "A game you added to your favourites is back on sale:" if count == 1 \
+            else "Games you added to your favourites are back on sale:"
+        stop = "To stop these emails: open the site, click your name at the top right, " \
+               "then “Email alerts” to switch it to “No”."
+        hello, all_deals, see_all, site = "Hi,", "All deals:", "See all deals", SITE + "?lang=en"
+    else:
+        extra = f"… et {more} autre{'s' if more > 1 else ''} sur le site." if more > 0 else ""
+        intro = "Un jeu que tu as mis en favori est de retour en promo :" if count == 1 \
+            else "Des jeux que tu as mis en favori sont de retour en promo :"
+        stop = "Pour ne plus recevoir ces e-mails : ouvre le site, clique sur ton nom en haut à droite, " \
+               "puis sur « Alertes par e-mail » pour le passer sur « Non »."
+        hello, all_deals, see_all, site = "Salut,", "Toutes les promos :", "Voir toutes les promos", SITE
 
     message = EmailMessage()
     message["Subject"] = subject
@@ -117,14 +133,14 @@ def compose(sender: str, to: str, games: list[dict]) -> EmailMessage:
     message["To"] = to
     message["Auto-Submitted"] = "auto-generated"
     message.set_content("\n".join([
-        "Salut,", "", intro, "", *lines, *([extra] if extra else []), "",
-        f"Toutes les promos : {SITE}", "", stop, "", "— Sous 30"]))
+        hello, "", intro, "", *lines, *([extra] if extra else []), "",
+        f"{all_deals} {site}", "", stop, "", "— Sous 30"]))
     message.add_alternative(
         '<div style="background:#05031a;color:#ece8ff;font-family:Segoe UI,Arial,sans-serif;padding:28px;border-radius:16px">'
         '<p style="font-size:22px;font-weight:800;margin:0 0 16px;color:#ffd22e">Sous 30</p>'
-        f'<p>Salut,</p><p>{html.escape(intro)}</p><ul style="padding-left:18px">{"".join(rows)}</ul>'
+        f'<p>{hello}</p><p>{html.escape(intro)}</p><ul style="padding-left:18px">{"".join(rows)}</ul>'
         + (f"<p>{html.escape(extra)}</p>" if extra else "")
-        + f'<p><a href="{SITE}" style="color:#ff8a1c">Voir toutes les promos</a></p>'
+        + f'<p><a href="{site}" style="color:#ff8a1c">{see_all}</a></p>'
         f'<p style="font-size:12px;color:#9c97c9;margin-top:24px">{html.escape(stop)}</p></div>',
         subtype="html")
     return message
@@ -174,7 +190,8 @@ def main() -> int:
     else:
         log("essai sans liste de comptes : ajoute --comptes fichier.json")
         return 0
-    mails = [(account["email"], games) for account in accounts if (games := wanted(account, back))]
+    mails = [(account["email"], games, (account.get("user_metadata") or {}).get("lang"))
+             for account in accounts if (games := wanted(account, back))]
     log(f"{len(accounts)} comptes, {len(mails)} à prévenir")
     if len(mails) > MAX_EMAILS:
         log(f"plafond de {MAX_EMAILS} e-mails par passage : les suivants ne sont pas prévenus cette fois")
@@ -183,8 +200,8 @@ def main() -> int:
         return 0
 
     if dry:
-        for index, (to, games) in enumerate(mails, 1):
-            message = compose(sender or "essai@exemple.fr", to, games)
+        for index, (to, games, lang) in enumerate(mails, 1):
+            message = compose(sender or "essai@exemple.fr", to, games, lang)
             log(f"essai, e-mail {index} : « {message['Subject']} »")
             print(message.get_body(("plain",)).get_content())
         return 0
@@ -192,9 +209,9 @@ def main() -> int:
     sent = failed = 0
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ssl.create_default_context(), timeout=30) as server:
         server.login(sender, password)
-        for to, games in mails:
+        for to, games, lang in mails:
             try:
-                server.send_message(compose(sender, to, games))
+                server.send_message(compose(sender, to, games, lang))
                 sent += 1
             except smtplib.SMTPException as error:      # une adresse refusée n'arrête pas les autres
                 failed += 1

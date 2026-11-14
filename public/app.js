@@ -765,6 +765,8 @@
     // Même compte déjà chargé : on garde les favoris en mémoire, plus récents que ceux du serveur.
     const favs = account.id === user.id ? account.favs : new Set(Array.isArray(meta.favs) ? meta.favs : []);
     const alerts = account.id === user.id ? account.alerts : meta.alerts === true;
+    // Les alertes sont écrites dans la langue du site : on la range avec le compte si elle a changé.
+    if (alerts && account.id !== user.id && meta.lang !== LANG && cloud) cloud.auth.updateUser({ data: { lang: LANG } });
     Object.assign(account, { id: user.id, name, favs, alerts });
     paintAccount();
   }
@@ -900,7 +902,7 @@
     const wanted = !account.alerts;
     account.alerts = wanted;
     paintAccount();
-    const { error } = await cloud.auth.updateUser({ data: { alerts: wanted } });
+    const { error } = await cloud.auth.updateUser({ data: { alerts: wanted, lang: LANG } });
     if (error) {
       account.alerts = !wanted;
       paintAccount();
