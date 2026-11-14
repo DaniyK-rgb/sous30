@@ -11,6 +11,11 @@ on:
     # et la tâche « verifier » arrête ceux qui arrivent alors que les prix ont moins de 25 minutes.
     - cron: "4,14,24,34,44,54 * * * *"
   workflow_dispatch:          # bouton « Run workflow » de l'onglet Actions
+    inputs:
+      test_email:
+        description: "Envoyer un e-mail d'alerte d'exemple à l'adresse d'envoi"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -89,6 +94,15 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
         run: python3 alertes.py "$RUNNER_TEMP/avant.json" public/deals.json
+
+      # Lancement manuel avec la case « test_email » : un e-mail d'exemple part vers l'adresse d'envoi.
+      - name: Envoyer un e-mail de test
+        if: github.event_name == 'workflow_dispatch' && inputs.test_email
+        env:
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SUPABASE_SECRET: inutile-pour-le-test
+        run: python3 alertes.py "$RUNNER_TEMP/avant.json" public/deals.json --test
 
       # GitHub suspend les tâches planifiées d'un dépôt resté 60 jours sans activité.
       # Réactiver la tâche à chaque passage remet ce compteur à zéro.

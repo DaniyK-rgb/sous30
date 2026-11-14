@@ -14,6 +14,7 @@ Réglages, lus dans l'environnement (des « secrets » du dépôt GitHub, jamais
 S'il en manque un, le programme ne fait rien et sort sans erreur.
 
 --essai   : n'envoie rien, affiche ce qui partirait (sans les adresses).
+--test    : envoie un seul e-mail d'exemple à l'adresse SMTP_USER elle-même, pour vérifier que l'envoi marche.
 --comptes : lit les comptes dans un fichier au lieu de Supabase (pour les essais).
 
 Le journal de la publication est public : ce programme n'y écrit jamais d'adresse e-mail.
@@ -147,6 +148,16 @@ def main() -> int:
         return 0
 
     before, after = read_items(args[0]), read_items(args[1])
+    if "--test" in sys.argv:        # un e-mail d'exemple, envoyé à l'adresse d'envoi elle-même
+        sample = sorted(after.values(), key=lambda item: -item["d"])[:2]
+        if not sample:
+            log("test impossible : aucun relevé à citer")
+            return 1
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ssl.create_default_context(), timeout=30) as server:
+            server.login(sender, password)
+            server.send_message(compose(sender, sender, sample))
+        log("e-mail de test envoyé à l'adresse d'envoi")
+        return 0
     # Sans relevé d'avant fiable, tout aurait l'air nouveau : on n'envoie rien plutôt qu'un déluge d'e-mails.
     if not after or len(before) < len(after) * .5:
         log(f"relevé d'avant absent ou trop court ({len(before)} offres contre {len(after)}) : aucun envoi")
