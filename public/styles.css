@@ -361,6 +361,7 @@ button { cursor: pointer; }
 }
 .menu button:hover { background: rgb(255 255 255 / .08); }
 .menu button small { font: 600 .72rem/1 var(--font-mono); color: var(--ink-3); }
+.menu button[aria-pressed="true"] small { padding: 4px 7px; border-radius: 6px; background: var(--ember); color: var(--ink-hot); }
 .menu__danger { color: var(--bad); }
 
 /* ------------------------------------------------------------------ accroche */

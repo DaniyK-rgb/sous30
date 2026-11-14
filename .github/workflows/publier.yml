@@ -59,6 +59,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Les promos en ligne juste avant ce passage : elles servent à repérer les jeux qui reviennent en promo.
+      - name: Garder les promotions d'avant
+        continue-on-error: true
+        run: curl -fsS --max-time 60 "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/deals.json" -o "$RUNNER_TEMP/avant.json"
+
       - name: Relever les promotions Steam
         run: python3 server.py --export public
 
@@ -70,6 +75,16 @@ jobs:
 
       - id: mise-en-ligne
         uses: actions/deploy-pages@v5
+
+      # E-mail aux comptes qui ont activé les alertes, quand un de leurs favoris revient en promo.
+      # Sans les trois secrets du dépôt, cette étape ne fait rien. Un échec ici ne touche pas au site.
+      - name: Prévenir des favoris revenus en promo
+        continue-on-error: true
+        env:
+          SUPABASE_SECRET: ${{ secrets.SUPABASE_SECRET }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: python3 alertes.py "$RUNNER_TEMP/avant.json" public/deals.json
 
       # GitHub suspend les tâches planifiées d'un dépôt resté 60 jours sans activité.
       # Réactiver la tâche à chaque passage remet ce compteur à zéro.

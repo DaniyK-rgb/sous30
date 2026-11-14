@@ -33,7 +33,7 @@
     emptyTitle: $('#emptyTitle'), emptyText: $('#emptyText'), favChip: $('#favChip'), favCount: $('#favCount'),
     accountBtn: $('#accountBtn'), accountAvatar: $('#accountAvatar'), accountLabel: $('#accountLabel'),
     menu: $('#accountMenu'), menuName: $('#menuName'), menuFavs: $('#menuFavs'), menuFavCount: $('#menuFavCount'),
-    menuLogout: $('#menuLogout'), menuDelete: $('#menuDelete'),
+    menuLogout: $('#menuLogout'), menuAlerts: $('#menuAlerts'), menuDelete: $('#menuDelete'),
     auth: $('#auth'), authTitle: $('#authTitle'), authHint: $('#authHint'), authForm: $('#authForm'),
     authSwitch: $('#authSwitch'), authLost: $('#authLost'), authSocial: $('#authSocial'), authNote: $('#authNote'),
     authName: $('#authName'), authPass: $('#authPass'),
@@ -669,7 +669,7 @@
     if (!user) {
       if (!account.id) return;
       const wasFiltered = state.onlyFavs;
-      Object.assign(account, { id: '', name: '', favs: new Set() });
+      Object.assign(account, { id: '', name: '', favs: new Set(), alerts: false });
       paintAccount();
       if (wasFiltered) refresh({ snap: false });
       return;
@@ -679,7 +679,8 @@
       || meta.user_name || (user.email || '').split('@')[0] || 'Mon compte';
     // Même compte déjà chargé : on garde les favoris en mémoire, plus récents que ceux du serveur.
     const favs = account.id === user.id ? account.favs : new Set(Array.isArray(meta.favs) ? meta.favs : []);
-    Object.assign(account, { id: user.id, name, favs });
+    const alerts = account.id === user.id ? account.alerts : meta.alerts === true;
+    Object.assign(account, { id: user.id, name, favs, alerts });
     paintAccount();
   }
 
@@ -718,7 +719,7 @@
   const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
   const SHARE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>';
   const USER_ICON ='<svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
-  const account = { id: '', name: '', favs: new Set() };   // compte connecté (id vide : personne)
+  const account = { id: '', name: '', favs: new Set(), alerts: false };   // compte connecté (id vide : personne)
   let pendingFav = 0;                                      // jeu à mettre en favori une fois connecté
 
   const vault = {
@@ -776,7 +777,7 @@
 
   function closeSession() {
     const wasFiltered = state.onlyFavs;
-    Object.assign(account, { id: '', name: '', favs: new Set() });
+    Object.assign(account, { id: '', name: '', favs: new Set(), alerts: false });
     if (ONLINE && cloud) cloud.auth.signOut();
     else vault.setSession('');
     paintAccount();
@@ -807,6 +808,21 @@
     vault.save(all);
   }
 
+  // Alertes : un e-mail quand un favori revient en promo. Rien n'est envoyé sans ce réglage.
+  async function toggleAlerts() {
+    if (!cloud || !account.id) return;
+    const wanted = !account.alerts;
+    account.alerts = wanted;
+    paintAccount();
+    const { error } = await cloud.auth.updateUser({ data: { alerts: wanted } });
+    if (error) {
+      account.alerts = !wanted;
+      paintAccount();
+      return toast('Le réglage n’a pas pu être enregistré. Réessaie dans un instant.');
+    }
+    toast(wanted ? 'C’est noté : tu recevras un e-mail quand un favori revient en promo.' : 'Alertes par e-mail arrêtées.');
+  }
+
   function favLabel(title, on) {
     return on ? `Retirer ${title} des favoris` : `Ajouter ${title} aux favoris`;
   }
@@ -831,6 +847,9 @@
     els.accountBtn.setAttribute('aria-label', on ? `Compte de ${account.name} : ouvrir le menu` : 'Se connecter ou créer un compte');
     els.menuName.textContent = account.name;
     els.menuDelete.hidden = ONLINE;      // un compte en ligne ne peut pas être supprimé depuis le site
+    els.menuAlerts.hidden = !ONLINE;     // les alertes partent par e-mail : il faut un compte en ligne
+    els.menuAlerts.setAttribute('aria-pressed', account.alerts);
+    els.menuAlerts.lastElementChild.textContent = account.alerts ? 'Oui' : 'Non';
     els.favChip.hidden = !on;
     if (!on) { state.onlyFavs = false; els.favChip.setAttribute('aria-pressed', 'false'); }
     paintFavs();
@@ -934,6 +953,7 @@
       els.menuDelete.textContent = 'Supprimer ce compte';
     });
     els.favChip.addEventListener('click', () => showFavs(!state.onlyFavs));
+    els.menuAlerts.addEventListener('click', toggleAlerts);
 
     els.grid.addEventListener('click', e => {
       const button = e.target.closest('.card__fav');
