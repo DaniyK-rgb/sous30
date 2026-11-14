@@ -73,6 +73,10 @@ jobs:
         with:
           path: public
 
+      # Il arrive que GitHub ne retrouve pas tout de suite le dossier qu'il vient de recevoir : on lui laisse un instant.
+      - name: Laisser le temps au dossier d'arriver
+        run: sleep 20
+
       - id: mise-en-ligne
         uses: actions/deploy-pages@v5
 
