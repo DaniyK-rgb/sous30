@@ -7,6 +7,9 @@
   <meta name="description" content="Tous les jeux Steam en promotion à moins de 30 €, relevés en direct sur la boutique française et colorés selon la force de leur réduction.">
   <!-- Les adresses avec filtres (?promo=…) désignent toutes cette même page -->
   <link rel="canonical" href="https://daniyk-rgb.github.io/sous30/">
+  <link rel="alternate" hreflang="fr" href="https://daniyk-rgb.github.io/sous30/">
+  <link rel="alternate" hreflang="en" href="https://daniyk-rgb.github.io/sous30/?lang=en">
+  <link rel="alternate" hreflang="x-default" href="https://daniyk-rgb.github.io/sous30/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Sous 30">
   <meta property="og:locale" content="fr_FR">
@@ -52,16 +55,17 @@
   </div>
 
   <header class="nav shell">
-    <a class="brand" href="#top" aria-label="Sous 30, retour en haut de page">
+    <a class="brand" href="#top" aria-label="Sous 30, retour en haut de page" data-en-aria-label="Sous 30, back to top">
       <span class="brand__spot" aria-hidden="true"></span>
       <span class="brand__name">sous<b>30</b></span>
     </a>
     <div class="nav__right">
       <p class="live" id="live" data-state="loading">
         <span class="live__dot" aria-hidden="true"></span>
-        <span id="liveText">Chargement des prix…</span>
+        <span id="liveText" data-en="Loading prices…">Chargement des prix…</span>
       </p>
-      <a class="tip" id="tipBtn" target="_blank" rel="noopener" aria-label="Tip me : soutenir le site par un don" hidden>
+      <button type="button" class="tip lang" id="langBtn" aria-label="Switch to English" title="English version">EN</button>
+      <a class="tip" id="tipBtn" target="_blank" rel="noopener" aria-label="Tip me : soutenir le site par un don" data-en-aria-label="Tip me: support the site with a donation" hidden>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><path d="M6 1v3M10 1v3M14 1v3"/></svg>
         <span>Tip me</span>
       </a>
@@ -78,28 +82,28 @@
       <div class="embers" id="embers" aria-hidden="true"></div>
 
       <div class="hero__copy">
-        <p class="eyebrow">Thermographie des promos Steam <span>· boutique France, prix en euros</span></p>
-        <h1 class="melt"><span>Les prix</span> <span>fondent.</span></h1>
-        <p class="lede">
+        <p class="eyebrow" data-en-html="Thermal map of Steam deals <span>· French store, prices in euros</span>">Thermographie des promos Steam <span>· boutique France, prix en euros</span></p>
+        <h1 class="melt" data-en-html="<span>Prices</span> <span>melt.</span>"><span>Les prix</span> <span>fondent.</span></h1>
+        <p class="lede" data-en-html="Every Steam game on sale for <strong>under €30</strong>, tracked live and gathered on a single page. The bigger the discount, the hotter the card.">
           Tous les jeux Steam en promotion à <strong>moins de 30&nbsp;€</strong>, relevés en direct et réunis sur une seule page.
           Plus la réduction est forte, plus la carte chauffe.
         </p>
         <dl class="stats">
-          <div><dt>offres à moins de 30&nbsp;€</dt><dd id="sCount">—</dd></div>
-          <div><dt>réduction la plus forte</dt><dd id="sMax">—</dd></div>
-          <div><dt>prix médian</dt><dd id="sMedian">—</dd></div>
-          <div><dt>jeux à moins de 5&nbsp;€</dt><dd id="sUnder5">—</dd></div>
+          <div><dt data-en="deals under €30">offres à moins de 30&nbsp;€</dt><dd id="sCount">—</dd></div>
+          <div><dt data-en="biggest discount">réduction la plus forte</dt><dd id="sMax">—</dd></div>
+          <div><dt data-en="median price">prix médian</dt><dd id="sMedian">—</dd></div>
+          <div><dt data-en="games under €5">jeux à moins de 5&nbsp;€</dt><dd id="sUnder5">—</dd></div>
         </dl>
       </div>
 
       <aside class="thermo" aria-labelledby="thermoTitle">
         <header class="thermo__head">
-          <h2 id="thermoTitle">Répartition des réductions</h2>
-          <span>clic = filtrer</span>
+          <h2 id="thermoTitle" data-en="Discount spread">Répartition des réductions</h2>
+          <span data-en="click = filter">clic = filtrer</span>
         </header>
-        <div class="thermo__bars" id="bars" role="group" aria-label="Nombre d'offres par tranche de réduction"></div>
+        <div class="thermo__bars" id="bars" role="group" aria-label="Nombre d'offres par tranche de réduction" data-en-aria-label="Number of deals per discount range"></div>
         <div class="thermo__scale" aria-hidden="true">
-          <span>froid</span><i></i><span>brûlant</span>
+          <span data-en="cold">froid</span><i></i><span data-en="scorching">brûlant</span>
         </div>
       </aside>
     </section>
@@ -111,15 +115,15 @@
     <section class="hot shell" id="hot" aria-labelledby="hotTitle">
       <header class="head">
         <div>
-          <p class="kicker">Sélection</p>
-          <h2 id="hotTitle">Les plus chaudes du moment</h2>
-          <p class="head__sub">De grosses réductions sur des jeux très bien notés.</p>
+          <p class="kicker" data-en="Picks">Sélection</p>
+          <h2 id="hotTitle" data-en="Hottest right now">Les plus chaudes du moment</h2>
+          <p class="head__sub" data-en="Big discounts on very well-rated games.">De grosses réductions sur des jeux très bien notés.</p>
         </div>
         <div class="head__nav">
-          <button type="button" class="round" id="railPrev" aria-label="Faire défiler vers la gauche">
+          <button type="button" class="round" id="railPrev" aria-label="Faire défiler vers la gauche" data-en-aria-label="Scroll left">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
           </button>
-          <button type="button" class="round" id="railNext" aria-label="Faire défiler vers la droite">
+          <button type="button" class="round" id="railNext" aria-label="Faire défiler vers la droite" data-en-aria-label="Scroll right">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
           </button>
         </div>
@@ -131,7 +135,7 @@
       <header class="head">
         <div>
           <p class="kicker">Catalogue</p>
-          <h2 id="dealsTitle">Toutes les offres</h2>
+          <h2 id="dealsTitle" data-en="All deals">Toutes les offres</h2>
         </div>
       </header>
 
@@ -140,142 +144,142 @@
         <div class="bar__in">
           <label class="search">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
-            <input id="q" type="search" placeholder="Rechercher un jeu…" autocomplete="off" spellcheck="false" aria-label="Rechercher un jeu">
+            <input id="q" type="search" placeholder="Rechercher un jeu…" autocomplete="off" spellcheck="false" aria-label="Rechercher un jeu" data-en-placeholder="Search for a game…" data-en-aria-label="Search for a game">
             <kbd aria-hidden="true">/</kbd>
           </label>
 
           <label class="dial">
-            <span class="dial__label">Budget max <output id="priceOut" for="price">30&nbsp;€</output></span>
+            <span class="dial__label" data-en-html="Max budget <output id=&quot;priceOut&quot; for=&quot;price&quot;>€30</output>">Budget max <output id="priceOut" for="price">30&nbsp;€</output></span>
             <input id="price" type="range" min="1" max="30" step="1" value="30">
           </label>
 
           <label class="dial dial--heat">
-            <span class="dial__label">Réduction min. <output id="discOut" for="disc">toutes</output></span>
+            <span class="dial__label" data-en-html="Min. discount <output id=&quot;discOut&quot; for=&quot;disc&quot;>any</output>">Réduction min. <output id="discOut" for="disc">toutes</output></span>
             <input id="disc" type="range" min="0" max="90" step="5" value="0">
           </label>
 
-          <div class="seg" id="rev" role="radiogroup" aria-label="Part minimale d'avis positifs">
-            <label><input type="radio" name="rev" id="rev0" value="0" checked><span>Tous avis</span></label>
-            <label><input type="radio" name="rev" id="rev70" value="70"><span>70&nbsp;%+</span></label>
-            <label><input type="radio" name="rev" id="rev85" value="85"><span>85&nbsp;%+</span></label>
-            <label><input type="radio" name="rev" id="rev95" value="95"><span>95&nbsp;%+</span></label>
+          <div class="seg" id="rev" role="radiogroup" aria-label="Part minimale d'avis positifs" data-en-aria-label="Minimum share of positive reviews">
+            <label><input type="radio" name="rev" id="rev0" value="0" checked><span data-en="Any rating">Tous avis</span></label>
+            <label><input type="radio" name="rev" id="rev70" value="70"><span data-en="70%+">70&nbsp;%+</span></label>
+            <label><input type="radio" name="rev" id="rev85" value="85"><span data-en="85%+">85&nbsp;%+</span></label>
+            <label><input type="radio" name="rev" id="rev95" value="95"><span data-en="95%+">95&nbsp;%+</span></label>
           </div>
 
           <label class="sort">
-            <span>Trier</span>
+            <span data-en="Sort">Trier</span>
             <select id="sort">
-              <option value="pop">Populaires</option>
-              <option value="hot">Plus fortes réductions</option>
-              <option value="cheap">Moins chères</option>
-              <option value="save">Plus grosses économies</option>
-              <option value="rated">Mieux notées</option>
-              <option value="soon">Se terminent bientôt</option>
-              <option value="recent">Sorties récentes</option>
+              <option value="pop" data-en="Popular">Populaires</option>
+              <option value="hot" data-en="Biggest discounts">Plus fortes réductions</option>
+              <option value="cheap" data-en="Cheapest">Moins chères</option>
+              <option value="save" data-en="Biggest savings">Plus grosses économies</option>
+              <option value="rated" data-en="Best rated">Mieux notées</option>
+              <option value="soon" data-en="Ending soon">Se terminent bientôt</option>
+              <option value="recent" data-en="Recent releases">Sorties récentes</option>
             </select>
           </label>
         </div>
       </div>
 
-      <div class="chips" id="genres" role="group" aria-label="Filtrer par genre"></div>
+      <div class="chips" id="genres" role="group" aria-label="Filtrer par genre" data-en-aria-label="Filter by genre"></div>
 
       <div class="resultline">
-        <p class="count" id="count" aria-live="polite">Relevé des offres…</p>
-        <div class="progress" id="progress" role="progressbar" aria-label="Chargement du catalogue" aria-valuemin="0" aria-valuemax="100"><i></i></div>
-        <button type="button" class="linkbtn" id="reset" hidden>Réinitialiser les filtres</button>
-        <button type="button" class="linkbtn" id="shareBtn" title="Copie un lien vers cette liste, avec tes filtres">Partager cette liste</button>
-        <button type="button" class="chip chip--sm" id="newChip" aria-pressed="false" hidden>Nouveautés<small id="newCount">0</small></button>
+        <p class="count" id="count" aria-live="polite" data-en="Fetching deals…">Relevé des offres…</p>
+        <div class="progress" id="progress" role="progressbar" aria-label="Chargement du catalogue" data-en-aria-label="Loading the catalogue" aria-valuemin="0" aria-valuemax="100"><i></i></div>
+        <button type="button" class="linkbtn" id="reset" data-en="Reset filters" hidden>Réinitialiser les filtres</button>
+        <button type="button" class="linkbtn" id="shareBtn" title="Copie un lien vers cette liste, avec tes filtres" data-en-title="Copies a link to this list, with your filters" data-en="Share this list">Partager cette liste</button>
+        <button type="button" class="chip chip--sm" id="newChip" aria-pressed="false" data-en-html="New<small id=&quot;newCount&quot;>0</small>" hidden>Nouveautés<small id="newCount">0</small></button>
         <button type="button" class="chip chip--sm chip--fav" id="favChip" aria-pressed="false" hidden>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-          Mes favoris<small id="favCount">0</small>
+          <span data-en="My favourites">Mes favoris</span><small id="favCount">0</small>
         </button>
-        <div class="plats-filter" role="group" aria-label="Compatibilité">
-          <span>Compatible</span>
+        <div class="plats-filter" role="group" aria-label="Compatibilité" data-en-aria-label="Compatibility">
+          <span data-en="Runs on">Compatible</span>
           <button type="button" class="chip chip--sm" data-plat="m" aria-pressed="false">macOS</button>
           <button type="button" class="chip chip--sm" data-plat="l" aria-pressed="false">Linux</button>
-          <button type="button" class="chip chip--sm" data-plat="d" aria-pressed="false" title="Jeux vérifiés par Valve pour le Steam Deck">Steam Deck</button>
+          <button type="button" class="chip chip--sm" data-plat="d" aria-pressed="false" title="Jeux vérifiés par Valve pour le Steam Deck" data-en-title="Games verified by Valve for the Steam Deck">Steam Deck</button>
         </div>
       </div>
 
       <div class="grid" id="grid"></div>
-      <nav class="pager" id="pager" aria-label="Pages des offres" hidden></nav>
+      <nav class="pager" id="pager" aria-label="Pages des offres" data-en-aria-label="Deal pages" hidden></nav>
 
       <div class="empty" id="empty" hidden>
         <p class="empty__big" aria-hidden="true">0</p>
-        <h3 id="emptyTitle">Rien à cette température.</h3>
-        <p id="emptyText">Aucune offre ne correspond à ces filtres. Une recherche plus courte, une réduction minimale plus basse ou un budget plus large en feront remonter.</p>
-        <button type="button" class="btn" id="resetEmpty">Réinitialiser les filtres</button>
+        <h3 id="emptyTitle" data-en="Nothing at this temperature.">Rien à cette température.</h3>
+        <p id="emptyText" data-en="No deal matches these filters. A shorter search, a lower minimum discount or a bigger budget will bring some back.">Aucune offre ne correspond à ces filtres. Une recherche plus courte, une réduction minimale plus basse ou un budget plus large en feront remonter.</p>
+        <button type="button" class="btn" id="resetEmpty" data-en="Reset filters">Réinitialiser les filtres</button>
       </div>
 
       <div class="empty" id="fail" hidden>
         <p class="empty__big" aria-hidden="true">!</p>
-        <h3>Impossible de relever les prix.</h3>
-        <p id="failText">Steam ne répond pas pour le moment. Les offres reviendront dès que la boutique sera joignable.</p>
-        <button type="button" class="btn" id="retry">Réessayer</button>
+        <h3 data-en="Couldn't fetch the prices.">Impossible de relever les prix.</h3>
+        <p id="failText" data-en="Steam isn't responding right now. Deals will be back as soon as the store is reachable.">Steam ne répond pas pour le moment. Les offres reviendront dès que la boutique sera joignable.</p>
+        <button type="button" class="btn" id="retry" data-en="Try again">Réessayer</button>
       </div>
     </section>
   </main>
 
   <footer class="foot shell">
     <p class="credit">Made by <b>Daniel</b>, <b>Nicolas</b> and <b>Samuel</b></p>
-    <p>Site et design © 2026 Daniel, Nicolas et Samuel. Tous droits réservés.</p>
-    <p id="tipFoot" hidden>Le site te plaît ? <a id="tipLink" target="_blank" rel="noopener">Tip me</a> : un petit don nous encourage à continuer.</p>
-    <p>
+    <p data-en="Site and design © 2026 Daniel, Nicolas and Samuel. All rights reserved.">Site et design © 2026 Daniel, Nicolas et Samuel. Tous droits réservés.</p>
+    <p id="tipFoot" data-en-html="Enjoying the site? <a id=&quot;tipLink&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot;>Tip me</a>: a small donation keeps us going." hidden>Le site te plaît ? <a id="tipLink" target="_blank" rel="noopener">Tip me</a> : un petit don nous encourage à continuer.</p>
+    <p data-en-html="Prices tracked on the French Steam store, in euros<span id=&quot;footTime&quot;></span>. They can change at any time: the price shown on Steam is the one that counts.">
       Prix relevés sur la boutique Steam France, en euros<span id="footTime"></span>. Ils peuvent changer à tout moment&nbsp;:
       le prix affiché sur Steam fait foi.
     </p>
-    <p>Sous 30 est un projet indépendant, sans lien avec Valve. Steam est une marque de Valve Corporation. <a href="confidentialite.html">Règles de confidentialité</a></p>
+    <p data-en-html="Sous 30 is an independent project, not affiliated with Valve. Steam is a trademark of Valve Corporation. <a href=&quot;privacy.html&quot;>Privacy policy</a>">Sous 30 est un projet indépendant, sans lien avec Valve. Steam est une marque de Valve Corporation. <a href="confidentialite.html">Règles de confidentialité</a></p>
   </footer>
 
-  <a class="totop" href="#offres" aria-label="Revenir aux filtres">
+  <a class="totop" href="#offres" aria-label="Revenir aux filtres" data-en-aria-label="Back to the filters">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
   </a>
 
   <!-- Menu du compte (s'ouvre sous le bouton du compte une fois connecté) -->
   <div class="menu" id="accountMenu" popover>
-    <p class="menu__who">Connecté en tant que <b id="menuName"></b></p>
-    <button type="button" id="menuFavs">Mes favoris <small id="menuFavCount">0</small></button>
-    <button type="button" id="menuAlerts" aria-pressed="false" title="Reçois un e-mail quand un de tes favoris revient en promo" hidden>Alertes par e-mail <small>Non</small></button>
-    <button type="button" id="menuLogout">Se déconnecter</button>
-    <button type="button" id="menuDelete" class="menu__danger">Supprimer ce compte</button>
+    <p class="menu__who" data-en-html="Signed in as <b id=&quot;menuName&quot;></b>">Connecté en tant que <b id="menuName"></b></p>
+    <button type="button" id="menuFavs" data-en-html="My favourites <small id=&quot;menuFavCount&quot;>0</small>">Mes favoris <small id="menuFavCount">0</small></button>
+    <button type="button" id="menuAlerts" aria-pressed="false" title="Reçois un e-mail quand un de tes favoris revient en promo" data-en-title="Get an email when one of your favourites is back on sale" data-en-html="Email alerts <small>No</small>" hidden>Alertes par e-mail <small>Non</small></button>
+    <button type="button" id="menuLogout" data-en="Sign out">Se déconnecter</button>
+    <button type="button" id="menuDelete" class="menu__danger" data-en="Delete this account">Supprimer ce compte</button>
   </div>
 
   <!-- Fenêtre d'inscription et de connexion -->
   <dialog class="auth" id="auth" aria-labelledby="authTitle">
-    <button type="button" class="auth__close" id="authClose" aria-label="Fermer">
+    <button type="button" class="auth__close" id="authClose" aria-label="Fermer" data-en-aria-label="Close">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
     </button>
     <h2 id="authTitle">Connexion</h2>
     <p class="auth__hint" id="authHint" hidden></p>
 
-    <div class="auth__social" id="authSocial" role="group" aria-label="Se connecter avec un autre service">
-      <button type="button" class="social social--facebook" data-social="Facebook" aria-label="Continuer avec Facebook">
+    <div class="auth__social" id="authSocial" role="group" aria-label="Se connecter avec un autre service" data-en-aria-label="Sign in with another service">
+      <button type="button" class="social social--facebook" data-social="Facebook" aria-label="Continuer avec Facebook" data-en-aria-label="Continue with Facebook">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M13.5 22v-8h2.7l.4-3.2h-3.1V8.8c0-.9.3-1.6 1.6-1.6h1.7V4.3c-.3 0-1.3-.1-2.5-.1-2.5 0-4.1 1.5-4.1 4.2v2.4H7.5V14h2.7v8z"/></svg>
       </button>
-      <button type="button" class="social social--google" data-social="Google" aria-label="Continuer avec Google">
+      <button type="button" class="social social--google" data-social="Google" aria-label="Continuer avec Google" data-en-aria-label="Continue with Google">
         <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
       </button>
-      <button type="button" class="social social--apple" data-social="Apple" aria-label="Continuer avec Apple">
+      <button type="button" class="social social--apple" data-social="Apple" aria-label="Continuer avec Apple" data-en-aria-label="Continue with Apple">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>
       </button>
-      <button type="button" class="social social--discord" data-social="Discord" aria-label="Continuer avec Discord">
+      <button type="button" class="social social--discord" data-social="Discord" aria-label="Continuer avec Discord" data-en-aria-label="Continue with Discord">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
       </button>
     </div>
-    <p class="auth__or"><span>ou</span></p>
+    <p class="auth__or"><span data-en="or">ou</span></p>
 
     <form class="auth__form" id="authForm" novalidate>
       <div class="entry">
-        <input id="authName" name="email" type="text" inputmode="email" placeholder="E-mail" aria-label="E-mail" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="120" required>
+        <input id="authName" name="email" type="text" inputmode="email" placeholder="E-mail" aria-label="E-mail" data-en-placeholder="Email" data-en-aria-label="Email" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="120" required>
       </div>
       <div class="entry">
-        <input id="authPass" name="password" type="password" placeholder="Mot de passe" aria-label="Mot de passe" autocomplete="current-password" required>
+        <input id="authPass" name="password" type="password" placeholder="Mot de passe" aria-label="Mot de passe" data-en-placeholder="Password" data-en-aria-label="Password" autocomplete="current-password" required>
         <button type="button" class="entry__peek" id="authPeek" aria-pressed="false" aria-label="Afficher le mot de passe">
           <svg class="eye-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/></svg>
           <svg class="eye-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
       </div>
       <div class="entry" id="authConfirmRow" hidden>
-        <input id="authPass2" name="password2" type="password" placeholder="Confirme le mot de passe" aria-label="Confirme le mot de passe" autocomplete="new-password">
+        <input id="authPass2" name="password2" type="password" placeholder="Confirme le mot de passe" aria-label="Confirme le mot de passe" data-en-placeholder="Confirm password" data-en-aria-label="Confirm password" autocomplete="new-password">
       </div>
       <p class="auth__error" id="authError" role="alert"></p>
       <button type="submit" class="auth__submit" id="authSubmit">Se connecter</button>
@@ -283,10 +287,10 @@
 
     <div class="auth__links">
       <button type="button" class="auth__link" id="authSwitch">Pas encore de compte ?</button>
-      <button type="button" class="auth__link" id="authLost">Mot de passe oublié ?</button>
+      <button type="button" class="auth__link" id="authLost" data-en="Forgot password?">Mot de passe oublié ?</button>
     </div>
 
-    <p class="auth__note" id="authNote">Ton compte et tes favoris sont enregistrés dans ce navigateur, sur cet appareil. Rien n'est envoyé sur Internet.</p>
+    <p class="auth__note" id="authNote" data-en="Your account and favourites are stored in this browser, on this device. Nothing is sent over the Internet.">Ton compte et tes favoris sont enregistrés dans ce navigateur, sur cet appareil. Rien n'est envoyé sur Internet.</p>
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

@@ -271,6 +271,8 @@ button { cursor: pointer; }
   transition: color .25s, border-color .25s, background .25s;
 }
 .tip:hover { border-color: var(--t5); background: rgb(255 210 46 / .08); color: var(--t5); }
+/* bouton de langue : même pastille, deux lettres */
+.tip.lang { padding: 0 11px; background: none; font: 700 .74rem/1 var(--font-mono); letter-spacing: .08em; }
 .tip svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 .account {

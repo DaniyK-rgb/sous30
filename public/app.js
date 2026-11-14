@@ -4,6 +4,22 @@
 (() => {
   'use strict';
 
+  /* Langue : ?lang=fr ou ?lang=en dans l'adresse, sinon le dernier choix, sinon la langue du navigateur.
+     Le français est écrit dans la page ; l'anglais vient des attributs data-en* et des appels L('fr', 'en'). */
+  const LANG_KEY = 'sous30:langue';
+  const LANG = (() => {
+    const known = value => value === 'fr' || value === 'en';
+    const asked = new URLSearchParams(location.search).get('lang');
+    let saved = '';
+    try { saved = localStorage.getItem(LANG_KEY) || ''; } catch { /* mémoire du navigateur indisponible */ }
+    if (known(asked)) { try { localStorage.setItem(LANG_KEY, asked); } catch { /* idem */ } return asked; }
+    if (known(saved)) return saved;
+    return (navigator.language || 'fr').toLowerCase().startsWith('fr') ? 'fr' : 'en';
+  })();
+  const EN = LANG === 'en';
+  const L = (fr, en) => (EN ? en : fr);
+  const LOCALE = EN ? 'en-GB' : 'fr-FR';
+
   const CDN = 'https://shared.fastly.steamstatic.com/store_item_assets/';
   const PAGE_SIZE = 24;         // jeux affichés par page
   const VISIBLE_GENRES = 14;    // genres affichés avant « + de genres »
@@ -17,11 +33,34 @@
     [4328, 'Construction de villes'], [699, 'Course'], [701, 'Sport'], [1743, 'Combat'], [1628, 'Metroidvania'],
     [3799, 'Roman graphique'], [1698, 'Pointer et cliquer'], [1645, 'Défense de tours'],
     [3942, 'Science-fiction'], [1684, 'Fantasy'], [4085, 'Anime'], [3964, 'Graphismes pixel'], [3810, 'Bac à sable']]);
+  if (EN) {
+    for (const [id, name] of [[21, 'Adventure'], [9, 'Strategy'], [492, 'Indie'], [1662, 'Survival'], [1667, 'Horror'],
+      [1664, 'Puzzle'], [1625, 'Platformer'], [1774, 'Shooter'], [1695, 'Open World'], [1685, 'Co-op'],
+      [3859, 'Multiplayer'], [12472, 'Management'], [1643, 'Building'], [4328, 'City Builder'], [699, 'Racing'],
+      [701, 'Sports'], [1743, 'Fighting'], [3799, 'Visual Novel'], [1698, 'Point & Click'], [1645, 'Tower Defense'],
+      [3942, 'Sci-fi'], [3964, 'Pixel Graphics'], [3810, 'Sandbox']]) GENRES.set(id, name);
+  }
+  // Appréciations des avis : Steam les donne en français ; voici leur équivalent anglais.
+  const REVIEW_EN = { 'extrêmement positives': 'Overwhelmingly Positive', 'très positives': 'Very Positive',
+    'positives': 'Positive', 'plutôt positives': 'Mostly Positive', 'moyennes': 'Mixed',
+    'plutôt négatives': 'Mostly Negative', 'négatives': 'Negative', 'très négatives': 'Very Negative',
+    'extrêmement négatives': 'Overwhelmingly Negative' };
   const PLATS = [['w', 'WIN'], ['m', 'MAC'], ['l', 'LINUX'], ['d', 'DECK']];
   const BUCKETS = [10, 20, 30, 40, 50, 60, 70, 80, 90];   // tranches de réduction du graphique
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+  // Version anglaise : on remplace les textes de la page avant de garder des références vers ses éléments.
+  if (EN) {
+    document.documentElement.lang = 'en';
+    document.title = 'Sous 30 — every Steam deal under €30';
+    for (const el of $$('[data-en-html]')) el.innerHTML = el.dataset.enHtml;
+    for (const el of $$('[data-en]')) el.textContent = el.dataset.en;
+    for (const name of ['aria-label', 'title', 'placeholder']) {
+      for (const el of $$(`[data-en-${name}]`)) el.setAttribute(name, el.getAttribute(`data-en-${name}`));
+    }
+  }
   const els = {
     live: $('#live'), liveText: $('#liveText'), spot: $('#spot'), embers: $('#embers'),
     sCount: $('#sCount'), sMax: $('#sMax'), sMedian: $('#sMedian'), sUnder5: $('#sUnder5'),
@@ -50,11 +89,11 @@
   };
 
   /* ------------------------------------------------------------------ outils */
-  const fmtEur = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
-  const fmtInt = new Intl.NumberFormat('fr-FR');
+  const fmtEur = new Intl.NumberFormat(EN ? 'en-IE' : 'fr-FR', { style: 'currency', currency: 'EUR' });
+  const fmtInt = new Intl.NumberFormat(LOCALE);
   const eur = cents => fmtEur.format(cents / 100);
   const int = n => fmtInt.format(Math.round(n));
-  const pct = n => `−${Math.round(n)} %`;
+  const pct = n => `−${Math.round(n)}${L(' %', '%')}`;
   const cap = s => (s ? s[0].toUpperCase() + s.slice(1) : '');
   const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   const fold = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -105,9 +144,9 @@
     if (!item.z) return null;
     const hours = (item.z * 1000 - Date.now()) / 36e5;
     if (hours <= 0) return null;
-    if (hours < 1) return { text: 'moins d’1 h', soon: true };
-    if (hours < 48) return { text: `encore ${Math.floor(hours)} h`, soon: hours < 24 };
-    return { text: `encore ${Math.floor(hours / 24)} j`, soon: false };
+    if (hours < 1) return { text: L('moins d’1 h', 'under 1 h'), soon: true };
+    if (hours < 48) return { text: L(`encore ${Math.floor(hours)} h`, `${Math.floor(hours)} h left`), soon: hours < 24 };
+    return { text: L(`encore ${Math.floor(hours / 24)} j`, `${Math.floor(hours / 24)} d left`), soon: false };
   }
 
   /* ------------------------------------------------------------------ gabarits */
@@ -123,15 +162,17 @@
 
   function cardHTML(item, i, mode) {
     const h = heat(item.d);
-    const final = item.f ? eur(item.f) : 'Gratuit';
+    const final = item.f ? eur(item.f) : L('Gratuit', 'Free');
+    const grade = EN ? REVIEW_EN[String(item.l).toLowerCase()] || item.l : cap(item.l);
     const review = item.c
-      ? `<span class="rev rev--${item.c}" title="${int(item.n)} évaluations"><i></i>${item.s} %<em>${esc(cap(item.l))}</em></span>`
-      : '<span class="rev rev--none">Pas encore assez d’avis</span>';
+      ? `<span class="rev rev--${item.c}" title="${int(item.n)} ${L('évaluations', 'reviews')}"><i></i>${item.s}${L(' %', '%')}<em>${esc(grade)}</em></span>`
+      : `<span class="rev rev--none">${L('Pas encore assez d’avis', 'Not enough reviews yet')}</span>`;
     const plats = PLATS.filter(([key]) => item.p.includes(key)).map(([, label]) => `<span>${label}</span>`).join('');
     const left = timeLeft(item);
     const ends = (left ? `<span class="card__ends${left.soon ? ' is-soon' : ''}">${left.text}</span>` : '')
-      + (item.isNew ? '<span class="card__new">Nouveau</span>' : '');
-    const label = `${item.t} : ${final} au lieu de ${eur(item.o)}, réduction de ${item.d} %${left ? `, ${left.text}` : ''}. Ouvrir sur Steam.`;
+      + (item.isNew ? `<span class="card__new">${L('Nouveau', 'New')}</span>` : '');
+    const label = L(`${item.t} : ${final} au lieu de ${eur(item.o)}, réduction de ${item.d} %${left ? `, ${left.text}` : ''}. Ouvrir sur Steam.`,
+      `${item.t}: ${final} instead of ${eur(item.o)}, ${item.d}% off${left ? `, ${left.text}` : ''}. Open on Steam.`);
     const fav = account.favs.has(item.a);
     // La carte entière est un lien vers Steam ; le cœur est un bouton à part, posé par-dessus.
     return `<article class="card${mode ? ` card--${mode}` : ''}${item.d >= 85 ? ' card--blaze' : ''}"`
@@ -141,13 +182,14 @@
       + `<span class="card__body"><span class="card__title">${esc(item.t)}</span>${review}`
       + `<span class="card__foot"><span class="price"><s>${eur(item.o)}</s><b>${final}</b></span><span class="plats">${plats}</span></span></span></a>`
       + `<button type="button" class="card__fav" data-fav="${item.a}" aria-pressed="${fav}" aria-label="${esc(favLabel(item.t, fav))}">${HEART}</button>`
-      + `<button type="button" class="card__share" data-share="${item.a}" title="Partager" aria-label="Partager ${esc(item.t)}">${SHARE}</button>`
+      + `<button type="button" class="card__share" data-share="${item.a}" title="${L('Partager', 'Share')}" aria-label="${L('Partager', 'Share')} ${esc(item.t)}">${SHARE}</button>`
       + '<span class="card__sheen"></span></div></article>';
   }
 
   function posterHTML(item, i) {
     const h = heat(item.d);
-    const label = `Numéro ${i + 1} : ${item.t}, ${eur(item.f)} au lieu de ${eur(item.o)}, réduction de ${item.d} %. Ouvrir sur Steam.`;
+    const label = L(`Numéro ${i + 1} : ${item.t}, ${eur(item.f)} au lieu de ${eur(item.o)}, réduction de ${item.d} %. Ouvrir sur Steam.`,
+      `Number ${i + 1}: ${item.t}, ${eur(item.f)} instead of ${eur(item.o)}, ${item.d}% off. Open on Steam.`);
     return `<a class="poster" href="${STORE}${esc(item.u)}/" target="_blank" rel="noopener" title="${esc(item.t)}" aria-label="${esc(label)}"`
       + ` style="--heat:${h.c};--ink-on:${h.ink};--i:${i}"><span class="poster__in">`
       + `<img src="${esc(art(item, item.v))}" alt="" decoding="async">`
@@ -226,9 +268,9 @@
     }
     try {
       await navigator.clipboard.writeText(url);
-      toast('Lien copié. Colle-le où tu veux.');
+      toast(L('Lien copié. Colle-le où tu veux.', 'Link copied. Paste it anywhere.'));
     } catch {
-      toast('Copie impossible ici : copie l’adresse en haut du navigateur.');
+      toast(L('Copie impossible ici : copie l’adresse en haut du navigateur.', 'Couldn’t copy here: copy the address from the top of your browser.'));
     }
   }
 
@@ -236,13 +278,15 @@
     const item = state.all.find(entry => entry.a === appid);
     if (!item) return;
     const params = new URLSearchParams({ q: item.t });
-    share(`${item.t} à ${eur(item.f)} au lieu de ${eur(item.o)} (−${item.d} %) sur Steam`, `${HOME}?${params}`);
+    share(L(`${item.t} à ${eur(item.f)} au lieu de ${eur(item.o)} (−${item.d} %) sur Steam`,
+      `${item.t} for ${eur(item.f)} instead of ${eur(item.o)} (−${item.d}%) on Steam`), `${HOME}?${params}`);
   }
 
   function shareFilters() {
     const query = filterParams().toString();
     const shown = state.view.length;
-    share(`${int(shown)} promo${shown > 1 ? 's' : ''} Steam à moins de ${state.maxPrice} €`, HOME + (query ? `?${query}` : ''));
+    share(L(`${int(shown)} promo${shown > 1 ? 's' : ''} Steam à moins de ${state.maxPrice} €`,
+      `${int(shown)} Steam deal${shown > 1 ? 's' : ''} under €${state.maxPrice}`), HOME + (query ? `?${query}` : ''));
   }
 
   function applyFilters() {
@@ -284,15 +328,15 @@
     const reach = innerWidth < 560 ? 1 : 2;
     const wanted = new Set([1, pages]);
     for (let p = current - reach; p <= current + reach; p++) if (p >= 1 && p <= pages) wanted.add(p);
-    let html = `<button type="button" class="pager__btn pager__btn--step" data-page="${current - 1}"${current === 1 ? ' disabled' : ''}>← Précédent</button>`;
+    let html = `<button type="button" class="pager__btn pager__btn--step" data-page="${current - 1}"${current === 1 ? ' disabled' : ''}>← ${L('Précédent', 'Previous')}</button>`;
     let previous = 0;
     for (const p of [...wanted].sort((a, b) => a - b)) {
       if (p - previous > 1) html += '<span class="pager__gap" aria-hidden="true">…</span>';
       html += `<button type="button" class="pager__btn" data-page="${p}" aria-label="Page ${p}"${p === current ? ' aria-current="page"' : ''}>${int(p)}</button>`;
       previous = p;
     }
-    html += `<button type="button" class="pager__btn pager__btn--step" data-page="${current + 1}"${current === pages ? ' disabled' : ''}>Suivant →</button>`;
-    html += `<p class="pager__info">Page ${int(current)} sur ${int(pages)}</p>`;
+    html += `<button type="button" class="pager__btn pager__btn--step" data-page="${current + 1}"${current === pages ? ' disabled' : ''}>${L('Suivant', 'Next')} →</button>`;
+    html += `<p class="pager__info">Page ${int(current)} ${L('sur', 'of')} ${int(pages)}</p>`;
     els.pager.innerHTML = html;
   }
 
@@ -326,16 +370,17 @@
 
   function syncUI() {
     const shown = state.view.length, total = state.all.length, filtered = isFiltered();
-    if (!total) els.count.textContent = 'Relevé des offres…';
-    else if (!shown) els.count.textContent = 'Aucune offre';
-    else els.count.innerHTML = `<b>${int(shown)}</b> offre${shown > 1 ? 's' : ''}${filtered ? ` sur ${int(total)}` : ''}`;
+    if (!total) els.count.textContent = L('Relevé des offres…', 'Fetching deals…');
+    else if (!shown) els.count.textContent = L('Aucune offre', 'No deals');
+    else els.count.innerHTML = `<b>${int(shown)}</b> ${L('offre', 'deal')}${shown > 1 ? 's' : ''}${filtered ? ` ${L('sur', 'of')} ${int(total)}` : ''}`;
     els.reset.hidden = !filtered;
     els.empty.hidden = !(total && !shown);
     if (state.onlyFavs && !shown) {
-      els.emptyTitle.textContent = account.favs.size ? 'Aucun favori en promo ici.' : 'Pas encore de favori.';
+      els.emptyTitle.textContent = account.favs.size ? L('Aucun favori en promo ici.', 'No favourite on sale here.') : L('Pas encore de favori.', 'No favourites yet.');
       els.emptyText.textContent = account.favs.size
-        ? 'Aucun de tes jeux favoris ne correspond à ces filtres en ce moment. Ils reviendront ici à leur prochaine promo.'
-        : 'Touche le cœur d’une carte pour ajouter un jeu à tes favoris.';
+        ? L('Aucun de tes jeux favoris ne correspond à ces filtres en ce moment. Ils reviendront ici à leur prochaine promo.',
+          'None of your favourite games match these filters right now. They will be back here on their next sale.')
+        : L('Touche le cœur d’une carte pour ajouter un jeu à tes favoris.', 'Tap the heart on a card to add a game to your favourites.');
     } else {
       els.emptyTitle.textContent = EMPTY_DEFAULT.title;
       els.emptyText.textContent = EMPTY_DEFAULT.text;
@@ -387,7 +432,8 @@
       const from = BUCKETS[i], to = i === BUCKETS.length - 1 ? 100 : from + 9;
       bar.style.setProperty('--h', (buckets[i] / top).toFixed(4));
       bar.querySelector('b').textContent = int(buckets[i]);
-      bar.setAttribute('aria-label', `Réductions de ${from} à ${to} % : ${int(buckets[i])} offres. Filtrer à partir de ${from} %.`);
+      bar.setAttribute('aria-label', L(`Réductions de ${from} à ${to} % : ${int(buckets[i])} offres. Filtrer à partir de ${from} %.`,
+        `Discounts from ${from} to ${to}%: ${int(buckets[i])} deals. Filter from ${from}% up.`));
     });
   }
 
@@ -400,10 +446,10 @@
   function paintDials() {
     const price = +els.price.value, disc = +els.disc.value;
     els.price.style.setProperty('--p', ((price - els.price.min) / (els.price.max - els.price.min)).toFixed(4));
-    els.priceOut.textContent = `${price} €`;
+    els.priceOut.textContent = L(`${price} €`, `€${price}`);
     els.disc.style.setProperty('--p', (disc / els.disc.max).toFixed(4));
     els.disc.style.setProperty('--glow', heat(Math.max(10, disc)).c);
-    els.discOut.textContent = disc ? pct(disc) : 'toutes';
+    els.discOut.textContent = disc ? pct(disc) : L('toutes', 'any');
     $$('.tbar', els.bars).forEach(bar => {
       const min = +bar.dataset.min;
       bar.classList.toggle('is-cold', min + 10 <= disc);
@@ -439,7 +485,7 @@
     const extra = list.length - VISIBLE_GENRES;
     els.genres.innerHTML = list.map((id, i) => `<button type="button" class="chip${i >= VISIBLE_GENRES ? ' chip--extra' : ''}" data-genre="${id}"`
       + ` aria-pressed="${state.genres.has(id)}">${esc(GENRES.get(id))}<small>${int(counts.get(id))}</small></button>`).join('')
-      + (extra > 0 ? `<button type="button" class="chip chip--more" data-more="${extra}" aria-expanded="${open}">${open ? 'Moins de genres' : `+ ${extra} genres`}</button>` : '');
+      + (extra > 0 ? `<button type="button" class="chip chip--more" data-more="${extra}" aria-expanded="${open}">${open ? L('Moins de genres', 'Fewer genres') : `+ ${extra} genres`}</button>` : '');
   }
 
   function bindControls() {
@@ -463,7 +509,7 @@
       if (chip.dataset.more) {
         const open = els.genres.classList.toggle('is-open');
         chip.setAttribute('aria-expanded', open);
-        chip.textContent = open ? 'Moins de genres' : `+ ${chip.dataset.more} genres`;
+        chip.textContent = open ? L('Moins de genres', 'Fewer genres') : `+ ${chip.dataset.more} genres`;
         return;
       }
       const id = +chip.dataset.genre, on = !state.genres.has(id);
@@ -534,22 +580,24 @@
   function updateLive() {
     if (!state.done) {
       els.live.dataset.state = 'loading';
-      els.liveText.textContent = `Relevé en cours · ${int(state.all.length)} / ${int(state.total)} offres`;
+      els.liveText.textContent = L(`Relevé en cours · ${int(state.all.length)} / ${int(state.total)} offres`,
+        `Fetching · ${int(state.all.length)} / ${int(state.total)} deals`);
       return;
     }
     const when = new Date(state.updatedAt);
     const sameDay = when.toDateString() === new Date().toDateString();
-    const time = when.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    const stamp = sameDay ? `à ${time}` : `le ${when.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} à ${time}`;
+    const time = when.toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
+    const day = when.toLocaleDateString(LOCALE, { day: 'numeric', month: 'long' });
+    const stamp = sameDay ? L(`à ${time}`, `at ${time}`) : L(`le ${day} à ${time}`, `on ${day} at ${time}`);
     els.live.dataset.state = 'live';
-    els.liveText.textContent = `Prix Steam relevés ${stamp}`;
+    els.liveText.textContent = L(`Prix Steam relevés ${stamp}`, `Steam prices checked ${stamp}`);
     els.footTime.textContent = ` ${stamp}`;
   }
 
   /* ------------------------------------------------------------------ chargement */
   function showFailure(message) {
     els.live.dataset.state = 'error';
-    els.liveText.textContent = 'Relevé impossible';
+    els.liveText.textContent = L('Relevé impossible', 'Prices unavailable');
     els.failText.textContent = message;
     els.fail.hidden = false;
     els.grid.innerHTML = '';
@@ -580,7 +628,8 @@
     els.newChip.hidden = !count;
     els.newChip.setAttribute('aria-pressed', state.onlyNew);
     els.newCount.textContent = int(count);
-    els.newChip.title = `Promos apparues depuis ta dernière visite (${new Date(baseAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })})`;
+    const since = new Date(baseAt).toLocaleString(LOCALE, { dateStyle: 'short', timeStyle: 'short' });
+    els.newChip.title = L(`Promos apparues depuis ta dernière visite (${since})`, `Deals that appeared since your last visit (${since})`);
     return count;
   }
 
@@ -643,7 +692,7 @@
             if (!state.all.length) {
               showFailure(local
                 ? 'Le serveur local ne répond pas. Vérifier qu’il est toujours lancé, puis réessayer.'
-                : 'Les offres n’ont pas pu être chargées. Réessayer dans un instant.');
+                : L('Les offres n’ont pas pu être chargées. Réessayer dans un instant.', 'The deals couldn’t be loaded. Try again in a moment.'));
             }
             return;
           }
@@ -652,7 +701,8 @@
         }
         failures = 0;
         if (data.error && !data.loaded) {
-          showFailure(`${data.error} Les offres reviendront dès que la boutique sera joignable.`);
+          showFailure(L(`${data.error} Les offres reviendront dès que la boutique sera joignable.`,
+            'Steam isn’t responding right now. Deals will be back as soon as the store is reachable.'));
           return;
         }
         ingest(data);
@@ -688,7 +738,7 @@
       const script = document.createElement('script');
       script.src = SUPABASE_JS;
       script.onload = resolve;
-      script.onerror = () => reject(new Error('Le service de comptes est injoignable. Réessaie dans un instant.'));
+      script.onerror = () => reject(new Error(L('Le service de comptes est injoignable. Réessaie dans un instant.', 'The account service can’t be reached. Try again in a moment.')));
       document.head.append(script);
     }).then(() => {
       cloud = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
@@ -711,7 +761,7 @@
     }
     const meta = user.user_metadata || {};
     const name = (meta.custom_claims && meta.custom_claims.global_name) || meta.full_name || meta.name
-      || meta.user_name || (user.email || '').split('@')[0] || 'Mon compte';
+      || meta.user_name || (user.email || '').split('@')[0] || L('Mon compte', 'My account');
     // Même compte déjà chargé : on garde les favoris en mémoire, plus récents que ceux du serveur.
     const favs = account.id === user.id ? account.favs : new Set(Array.isArray(meta.favs) ? meta.favs : []);
     const alerts = account.id === user.id ? account.alerts : meta.alerts === true;
@@ -721,19 +771,19 @@
 
   function cloudMessage(error) {
     const text = String((error && error.message) || '');
-    if (/invalid login credentials/i.test(text)) return 'E-mail ou mot de passe incorrect.';
-    if (/already (been )?registered/i.test(text)) return 'Cet e-mail a déjà un compte. Connecte-toi.';
-    if (/email not confirmed/i.test(text)) return 'Ton e-mail n’est pas encore confirmé : clique sur le lien reçu par e-mail.';
-    if ((error && error.status === 429) || /rate limit/i.test(text)) return 'Trop de demandes pour le moment. Réessaie dans quelques minutes.';
-    if (/should be different/i.test(text)) return 'Choisis un mot de passe différent de l’ancien.';
-    return `Ça n’a pas marché : ${text || 'erreur inconnue'}.`;
+    if (/invalid login credentials/i.test(text)) return L('E-mail ou mot de passe incorrect.', 'Wrong email or password.');
+    if (/already (been )?registered/i.test(text)) return L('Cet e-mail a déjà un compte. Connecte-toi.', 'This email already has an account. Sign in instead.');
+    if (/email not confirmed/i.test(text)) return L('Ton e-mail n’est pas encore confirmé : clique sur le lien reçu par e-mail.', 'Your email isn’t confirmed yet: click the link we emailed you.');
+    if ((error && error.status === 429) || /rate limit/i.test(text)) return L('Trop de demandes pour le moment. Réessaie dans quelques minutes.', 'Too many requests right now. Try again in a few minutes.');
+    if (/should be different/i.test(text)) return L('Choisis un mot de passe différent de l’ancien.', 'Choose a password different from the old one.');
+    return L(`Ça n’a pas marché : ${text || 'erreur inconnue'}.`, `That didn’t work: ${text || 'unknown error'}.`);
   }
 
   async function cloudSignUp(email, password) {
     const { data, error } = await cloud.auth.signUp({ email, password, options: { emailRedirectTo: HOME } });
     if (error) throw new Error(cloudMessage(error));
     // Supabase répond sans erreur pour un e-mail déjà inscrit, mais avec une liste d'identités vide.
-    if (data.user && data.user.identities && data.user.identities.length === 0) throw new Error('Cet e-mail a déjà un compte. Connecte-toi.');
+    if (data.user && data.user.identities && data.user.identities.length === 0) throw new Error(L('Cet e-mail a déjà un compte. Connecte-toi.', 'This email already has an account. Sign in instead.'));
     if (!data.session) return 'confirm';      // un e-mail de confirmation vient d'être envoyé
     applyCloudUser(data.user);
     return 'ok';
@@ -788,19 +838,20 @@
   async function signUp(email, password) {
     if (ONLINE) return cloudSignUp(email, password);
     const id = email.toLowerCase(), all = vault.all();
-    if (all[slot(id)]) throw new Error('Cet e-mail a déjà un compte sur cet appareil. Connecte-toi.');
+    if (all[slot(id)]) throw new Error(L('Cet e-mail a déjà un compte sur cet appareil. Connecte-toi.', 'This email already has an account on this device. Sign in instead.'));
     const salt = crypto.getRandomValues(new Uint8Array(16));
     const name = email.split('@')[0];      // nom affiché : la partie avant le @
     all[slot(id)] = { name, salt: toBase64(salt), hash: await fingerprint(password, salt), favs: [], created: Date.now() };
-    if (!vault.save(all)) throw new Error('Ce navigateur refuse d’enregistrer des données : impossible de créer un compte ici.');
+    if (!vault.save(all)) throw new Error(L('Ce navigateur refuse d’enregistrer des données : impossible de créer un compte ici.', 'This browser refuses to store data: an account can’t be created here.'));
     openSession(id, all[slot(id)]);
   }
 
   async function signIn(name, password) {
     if (ONLINE) return cloudSignIn(name, password);
     const id = name.toLowerCase(), found = vault.all()[slot(id)];
-    if (!found) throw new Error(`Aucun compte « ${name} » sur cet appareil. Les comptes ne sont pas partagés entre appareils : crée-le avec « Pas encore de compte ? ».`);
-    if (await fingerprint(password, fromBase64(found.salt)) !== found.hash) throw new Error('Mot de passe incorrect.');
+    if (!found) throw new Error(L(`Aucun compte « ${name} » sur cet appareil. Les comptes ne sont pas partagés entre appareils : crée-le avec « Pas encore de compte ? ».`,
+      `No “${name}” account on this device. Accounts aren’t shared between devices: create it with “No account yet?”.`));
+    if (await fingerprint(password, fromBase64(found.salt)) !== found.hash) throw new Error(L('Mot de passe incorrect.', 'Wrong password.'));
     openSession(id, found);
   }
 
@@ -853,13 +904,14 @@
     if (error) {
       account.alerts = !wanted;
       paintAccount();
-      return toast('Le réglage n’a pas pu être enregistré. Réessaie dans un instant.');
+      return toast(L('Le réglage n’a pas pu être enregistré. Réessaie dans un instant.', 'The setting couldn’t be saved. Try again in a moment.'));
     }
-    toast(wanted ? 'C’est noté : tu recevras un e-mail quand un favori revient en promo.' : 'Alertes par e-mail arrêtées.');
+    toast(wanted ? L('C’est noté : tu recevras un e-mail quand un favori revient en promo.', 'Got it: you’ll get an email when a favourite is back on sale.')
+      : L('Alertes par e-mail arrêtées.', 'Email alerts turned off.'));
   }
 
   function favLabel(title, on) {
-    return on ? `Retirer ${title} des favoris` : `Ajouter ${title} aux favoris`;
+    return on ? L(`Retirer ${title} des favoris`, `Remove ${title} from favourites`) : L(`Ajouter ${title} aux favoris`, `Add ${title} to favourites`);
   }
 
   // Met à jour les cœurs affichés et le nombre de favoris actuellement en promo.
@@ -876,15 +928,15 @@
 
   function paintAccount() {
     const on = Boolean(account.id);
-    els.accountLabel.textContent = on ? account.name : 'Connexion';
+    els.accountLabel.textContent = on ? account.name : L('Connexion', 'Sign in');
     if (on) els.accountAvatar.textContent = Array.from(account.name)[0].toUpperCase();
     else els.accountAvatar.innerHTML = USER_ICON;
-    els.accountBtn.setAttribute('aria-label', on ? `Compte de ${account.name} : ouvrir le menu` : 'Se connecter ou créer un compte');
+    els.accountBtn.setAttribute('aria-label', on ? L(`Compte de ${account.name} : ouvrir le menu`, `${account.name}’s account: open the menu`) : L('Se connecter ou créer un compte', 'Sign in or create an account'));
     els.menuName.textContent = account.name;
     els.menuDelete.hidden = ONLINE;      // un compte en ligne ne peut pas être supprimé depuis le site
     els.menuAlerts.hidden = !ONLINE;     // les alertes partent par e-mail : il faut un compte en ligne
     els.menuAlerts.setAttribute('aria-pressed', account.alerts);
-    els.menuAlerts.lastElementChild.textContent = account.alerts ? 'Oui' : 'Non';
+    els.menuAlerts.lastElementChild.textContent = account.alerts ? L('Oui', 'Yes') : L('Non', 'No');
     els.favChip.hidden = !on;
     if (!on) { state.onlyFavs = false; els.favChip.setAttribute('aria-pressed', 'false'); }
     paintFavs();
@@ -893,7 +945,7 @@
   function toggleFav(appid, button) {
     if (!account.id) {
       pendingFav = appid;
-      openAuth('Connecte-toi pour garder ce jeu dans tes favoris.');
+      openAuth(L('Connecte-toi pour garder ce jeu dans tes favoris.', 'Sign in to keep this game in your favourites.'));
       return;
     }
     const on = !account.favs.has(appid);
@@ -934,9 +986,9 @@
     authSignup = signup;
     authNew = renew;
     els.auth.classList.toggle('auth--new', renew);
-    els.authTitle.textContent = renew ? 'Nouveau mot de passe' : signup ? 'Inscription' : 'Connexion';
-    els.authSubmit.textContent = renew ? 'Enregistrer' : signup ? 'Créer mon compte' : 'Se connecter';
-    els.authSwitch.textContent = signup ? 'Déjà un compte ?' : 'Pas encore de compte ?';
+    els.authTitle.textContent = renew ? L('Nouveau mot de passe', 'New password') : signup ? L('Inscription', 'Sign up') : L('Connexion', 'Sign in');
+    els.authSubmit.textContent = renew ? L('Enregistrer', 'Save') : signup ? L('Créer mon compte', 'Create my account') : L('Se connecter', 'Sign in');
+    els.authSwitch.textContent = signup ? L('Déjà un compte ?', 'Already have an account?') : L('Pas encore de compte ?', 'No account yet?');
     els.authLost.hidden = signup;
     els.authConfirmRow.hidden = !(signup || renew);
     els.authPass.autocomplete = signup || renew ? 'new-password' : 'current-password';
@@ -946,7 +998,7 @@
   function showPassword(show) {
     els.authPass.type = els.authPass2.type = show ? 'text' : 'password';
     els.authPeek.setAttribute('aria-pressed', show);
-    els.authPeek.setAttribute('aria-label', show ? 'Cacher le mot de passe' : 'Afficher le mot de passe');
+    els.authPeek.setAttribute('aria-label', show ? L('Cacher le mot de passe', 'Hide password') : L('Afficher le mot de passe', 'Show password'));
   }
 
   function openAuth(hint, renew = false) {
@@ -968,12 +1020,12 @@
       const name = account.name;
       els.menu.hidePopover();
       closeSession();
-      toast(`À bientôt, ${name} !`);
+      toast(L(`À bientôt, ${name} !`, `See you soon, ${name}!`));
     });
     els.menuDelete.addEventListener('click', () => {
       if (!els.menuDelete.dataset.armed) {          // premier clic : on demande confirmation
         els.menuDelete.dataset.armed = '1';
-        els.menuDelete.textContent = 'Confirmer la suppression';
+        els.menuDelete.textContent = L('Confirmer la suppression', 'Confirm deletion');
         return;
       }
       const all = vault.all();
@@ -981,11 +1033,11 @@
       vault.save(all);
       els.menu.hidePopover();
       closeSession();
-      toast('Compte supprimé de cet appareil.');
+      toast(L('Compte supprimé de cet appareil.', 'Account removed from this device.'));
     });
     els.menu.addEventListener('toggle', () => {
       delete els.menuDelete.dataset.armed;
-      els.menuDelete.textContent = 'Supprimer ce compte';
+      els.menuDelete.textContent = L('Supprimer ce compte', 'Delete this account');
     });
     els.favChip.addEventListener('click', () => showFavs(!state.onlyFavs));
     els.menuAlerts.addEventListener('click', toggleAlerts);
@@ -998,19 +1050,22 @@
     });
 
     els.authSwitch.addEventListener('click', () => { setAuthMode(!authSignup); els.authName.focus(); });
-    if (ONLINE) els.authNote.textContent = 'Ton compte et tes favoris sont enregistrés en ligne : tu les retrouves sur tous tes appareils.';
+    if (ONLINE) els.authNote.textContent = L('Ton compte et tes favoris sont enregistrés en ligne : tu les retrouves sur tous tes appareils.',
+      'Your account and favourites are stored online: you’ll find them on all your devices.');
 
     els.authLost.addEventListener('click', async () => {
       if (!ONLINE) {     // sans serveur, impossible d'envoyer un e-mail de récupération : on le dit clairement
-        return authSay('Ton compte est enregistré sur cet appareil : son mot de passe ne peut pas être retrouvé. Tu peux créer un nouveau compte avec « Pas encore de compte ? ».', true);
+        return authSay(L('Ton compte est enregistré sur cet appareil : son mot de passe ne peut pas être retrouvé. Tu peux créer un nouveau compte avec « Pas encore de compte ? ».',
+          'Your account is stored on this device: its password can’t be recovered. You can create a new account with “No account yet?”.'), true);
       }
       const email = els.authName.value.trim();
-      if (!EMAIL_RULE.test(email)) return authSay('Écris d’abord ton adresse e-mail dans le premier champ, puis reclique ici.');
+      if (!EMAIL_RULE.test(email)) return authSay(L('Écris d’abord ton adresse e-mail dans le premier champ, puis reclique ici.', 'Type your email address in the first field first, then click here again.'));
       try {
         await cloudReady;
         const { error } = await cloud.auth.resetPasswordForEmail(email, { redirectTo: HOME });
         if (error) throw new Error(cloudMessage(error));
-        authSay('Si un compte existe pour cette adresse, un e-mail vient de partir avec un lien pour choisir un nouveau mot de passe.', true);
+        authSay(L('Si un compte existe pour cette adresse, un e-mail vient de partir avec un lien pour choisir un nouveau mot de passe.',
+          'If an account exists for this address, an email is on its way with a link to choose a new password.'), true);
       } catch (error) {
         authSay(error.message);
       }
@@ -1022,7 +1077,8 @@
       if (!button) return;
       const provider = button.dataset.social.toLowerCase();
       if (!ONLINE || !PROVIDERS.includes(provider)) {
-        return authSay(`La connexion avec ${button.dataset.social} n’est pas encore activée. Utilise ton e-mail pour l’instant.`, true);
+        return authSay(L(`La connexion avec ${button.dataset.social} n’est pas encore activée. Utilise ton e-mail pour l’instant.`,
+          `Signing in with ${button.dataset.social} isn’t available yet. Use your email for now.`), true);
       }
       try {
         await cloudReady;
@@ -1047,10 +1103,10 @@
       const name = els.authName.value.trim(), password = els.authPass.value;
       const fail = message => authSay(message);
       // Il faut un e-mail, sauf pour se connecter à un compte local créé avec un ancien pseudo.
-      if (!renew && (signup || ONLINE ? !EMAIL_RULE.test(name) : !name)) return fail('Écris ton adresse e-mail, par exemple prenom@exemple.fr.');
-      if (password.length < 6) return fail('Le mot de passe doit faire au moins 6 caractères.');
-      if ((signup || renew) && password !== els.authPass2.value) return fail('Les deux mots de passe ne sont pas identiques.');
-      if (!ONLINE && (!window.crypto || !crypto.subtle)) return fail('Ce navigateur ne peut pas protéger un mot de passe sur cette page. Ouvre le site par son adresse en https.');
+      if (!renew && (signup || ONLINE ? !EMAIL_RULE.test(name) : !name)) return fail(L('Écris ton adresse e-mail, par exemple prenom@exemple.fr.', 'Type your email address, for example name@example.com.'));
+      if (password.length < 6) return fail(L('Le mot de passe doit faire au moins 6 caractères.', 'The password must be at least 6 characters long.'));
+      if ((signup || renew) && password !== els.authPass2.value) return fail(L('Les deux mots de passe ne sont pas identiques.', 'The two passwords don’t match.'));
+      if (!ONLINE && (!window.crypto || !crypto.subtle)) return fail(L('Ce navigateur ne peut pas protéger un mot de passe sur cette page. Ouvre le site par son adresse en https.', 'This browser can’t protect a password on this page. Open the site through its https address.'));
       els.authSubmit.disabled = true;
       let outcome;
       try {
@@ -1062,12 +1118,14 @@
         els.authSubmit.disabled = false;
       }
       if (outcome === 'confirm') {
-        return authSay('Presque fini : ouvre l’e-mail que tu viens de recevoir et clique sur le lien pour activer ton compte.', true);
+        return authSay(L('Presque fini : ouvre l’e-mail que tu viens de recevoir et clique sur le lien pour activer ton compte.',
+          'Almost done: open the email you just received and click the link to activate your account.'), true);
       }
       if (pendingFav) { account.favs.add(pendingFav); saveFavs(); paintFavs(); }
       els.auth.close();
-      toast(renew ? 'Ton nouveau mot de passe est enregistré.'
-        : signup ? `Bienvenue, ${account.name} ! Ton compte est créé.` : `Te revoilà, ${account.name} !`);
+      toast(renew ? L('Ton nouveau mot de passe est enregistré.', 'Your new password is saved.')
+        : signup ? L(`Bienvenue, ${account.name} ! Ton compte est créé.`, `Welcome, ${account.name}! Your account is ready.`)
+          : L(`Te revoilà, ${account.name} !`, `Welcome back, ${account.name}!`));
     });
   }
 
@@ -1163,6 +1221,19 @@
   paintDials();
   bindControls();
   bindAccount();
+  // Bouton de langue : il propose l'autre langue, retient le choix et recharge la page.
+  {
+    const other = EN ? 'fr' : 'en', button = $('#langBtn');
+    button.textContent = other.toUpperCase();
+    button.setAttribute('aria-label', EN ? 'Passer en français' : 'Switch to English');
+    button.title = EN ? 'Version française' : 'English version';
+    button.addEventListener('click', () => {
+      try { localStorage.setItem(LANG_KEY, other); } catch { /* le choix passera par l'adresse */ }
+      const url = new URL(location.href);
+      url.searchParams.set('lang', other);
+      location.assign(url);
+    });
+  }
   restoreSession();
   // Bouton « Tip me » : affiché seulement si config.js donne l'adresse de la page de dons.
   if (/^https:\/\//.test(CONFIG.tipUrl || '')) {
