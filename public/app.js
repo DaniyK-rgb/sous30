@@ -30,7 +30,7 @@
     sort: $('#sort'), genres: $('#genres'), count: $('#count'), progress: $('#progress'), reset: $('#reset'),
     grid: $('#grid'), pager: $('#pager'), empty: $('#empty'), fail: $('#fail'), failText: $('#failText'),
     barAnchor: $('#barAnchor'), footTime: $('#footTime'), deals: $('#offres'),
-    emptyTitle: $('#emptyTitle'), emptyText: $('#emptyText'), favChip: $('#favChip'), favCount: $('#favCount'),
+    emptyTitle: $('#emptyTitle'), emptyText: $('#emptyText'), favChip: $('#favChip'), newChip: $('#newChip'), newCount: $('#newCount'), favCount: $('#favCount'),
     accountBtn: $('#accountBtn'), accountAvatar: $('#accountAvatar'), accountLabel: $('#accountLabel'),
     menu: $('#accountMenu'), menuName: $('#menuName'), menuFavs: $('#menuFavs'), menuFavCount: $('#menuFavCount'),
     menuLogout: $('#menuLogout'), menuAlerts: $('#menuAlerts'), menuDelete: $('#menuDelete'),
@@ -45,7 +45,7 @@
   const state = {
     all: [], received: 0, total: 0, done: false, version: 0, updatedAt: 0,
     q: '', maxPrice: MAX_PRICE, minDisc: 0, minRev: 0, plats: new Set(), genres: new Set(), sort: 'pop',
-    onlyFavs: false,
+    onlyFavs: false, onlyNew: false, newCount: 0,
     view: [], page: 1,
   };
 
@@ -129,7 +129,8 @@
       : '<span class="rev rev--none">Pas encore assez d’avis</span>';
     const plats = PLATS.filter(([key]) => item.p.includes(key)).map(([, label]) => `<span>${label}</span>`).join('');
     const left = timeLeft(item);
-    const ends = left ? `<span class="card__ends${left.soon ? ' is-soon' : ''}">${left.text}</span>` : '';
+    const ends = (left ? `<span class="card__ends${left.soon ? ' is-soon' : ''}">${left.text}</span>` : '')
+      + (item.isNew ? '<span class="card__new">Nouveau</span>' : '');
     const label = `${item.t} : ${final} au lieu de ${eur(item.o)}, réduction de ${item.d} %${left ? `, ${left.text}` : ''}. Ouvrir sur Steam.`;
     const fav = account.favs.has(item.a);
     // La carte entière est un lien vers Steam ; le cœur est un bouton à part, posé par-dessus.
@@ -167,7 +168,7 @@
   };
 
   const isFiltered = () => Boolean(state.q || state.maxPrice < MAX_PRICE || state.minDisc || state.minRev
-    || state.plats.size || state.genres.size || state.onlyFavs);
+    || state.plats.size || state.genres.size || state.onlyFavs || state.onlyNew);
 
   /* ------------------------------------------------------------------ filtres dans l'adresse, partage */
   const URL_KEYS = ['q', 'prix', 'promo', 'avis', 'tri', 'plat', 'genre', 'page'];
@@ -252,6 +253,7 @@
     for (const item of state.all) {
       if (item.f > maxCents || item.d < state.minDisc) continue;
       if (state.onlyFavs && !account.favs.has(item.a)) continue;
+      if (state.onlyNew && !item.isNew) continue;
       if (state.minRev && (!item.n || item.s < state.minRev)) continue;
       if (plats.length && !plats.every(p => item.p.includes(p))) continue;
       if (genres.length && !genres.every(g => item.g.includes(g))) continue;
@@ -417,7 +419,7 @@
   }
 
   function resetFilters() {
-    Object.assign(state, { q: '', maxPrice: MAX_PRICE, minDisc: 0, minRev: 0, onlyFavs: false });
+    Object.assign(state, { q: '', maxPrice: MAX_PRICE, minDisc: 0, minRev: 0, onlyFavs: false, onlyNew: false });
     state.plats.clear();
     state.genres.clear();
     els.q.value = '';
@@ -487,6 +489,11 @@
     });
 
     els.reset.addEventListener('click', resetFilters);
+    els.newChip.addEventListener('click', () => {
+      state.onlyNew = !state.onlyNew;
+      els.newChip.setAttribute('aria-pressed', state.onlyNew);
+      refresh({ snap: false });
+    });
     $('#shareBtn').addEventListener('click', shareFilters);
     $('#resetEmpty').addEventListener('click', resetFilters);
     $('#retry').addEventListener('click', load);
@@ -550,6 +557,33 @@
     els.progress.hidden = true;
   }
 
+  /* Nouveautés : les promos apparues depuis la dernière visite.
+     Le navigateur garde deux listes de jeux : celle de la visite précédente (le repère) et celle de la visite en cours.
+     Après quelques heures d'absence, la liste en cours devient le nouveau repère. */
+  const SEEN_KEY = 'sous30:vus';
+  const VISIT_GAP = 3 * 3600 * 1000;
+  function markNew() {
+    const ids = state.all.map(item => item.a), now = Date.now();
+    let record = null;
+    try { record = JSON.parse(localStorage.getItem(SEEN_KEY)); } catch { /* mémoire du navigateur indisponible */ }
+    const valid = record && Array.isArray(record.base) && Array.isArray(record.cur);
+    let base = ids, baseAt = now;                         // première visite : rien n'est « nouveau »
+    if (valid && now - record.curAt > VISIT_GAP) { base = record.cur; baseAt = record.curAt; }
+    else if (valid) { base = record.base; baseAt = record.baseAt; }
+    try { localStorage.setItem(SEEN_KEY, JSON.stringify({ base, baseAt, cur: ids, curAt: now })); } catch { /* idem */ }
+
+    const known = new Set(base);
+    let count = 0;
+    for (const item of state.all) { item.isNew = !known.has(item.a); if (item.isNew) count++; }
+    state.newCount = count;
+    if (!count) state.onlyNew = false;
+    els.newChip.hidden = !count;
+    els.newChip.setAttribute('aria-pressed', state.onlyNew);
+    els.newCount.textContent = int(count);
+    els.newChip.title = `Promos apparues depuis ta dernière visite (${new Date(baseAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })})`;
+    return count;
+  }
+
   function ingest(data) {
     if (data.reset || (state.version && data.v !== state.version)) { state.all = []; state.received = 0; }
     state.version = data.v;
@@ -565,13 +599,14 @@
 
     updateStats();
     updateLive();
+    const fresh = state.done ? markNew() : 0;
     if (first) {
       buildChips();
       refresh({ snap: false, keep: true });     // keep : la page demandée dans l'adresse est respectée
     } else if (state.sort === 'pop' && els.grid.querySelector('.card')) {
       applyFilters();          // les nouvelles offres s'ajoutent à la suite : la page affichée ne bouge pas
       syncUI();
-      if (els.grid.querySelectorAll('.card').length < PAGE_SIZE) renderGrid({ quick: true });
+      if (fresh || els.grid.querySelectorAll('.card').length < PAGE_SIZE) renderGrid({ quick: true });
       else renderPager();
     } else {
       refresh({ quick: true, keep: true, snap: false });

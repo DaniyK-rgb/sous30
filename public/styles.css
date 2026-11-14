@@ -1272,6 +1272,22 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { outline: 2px solid var
 }
 .card__ends.is-soon { background: var(--t5); color: var(--ink-hot); }
 
+/* promo apparue depuis la dernière visite */
+.card__new {
+  position: absolute;
+  right: 10px;
+  bottom: 9px;
+  z-index: 2;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: var(--t6);
+  font: 800 .62rem/1 var(--font-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-hot);
+  transform: translateZ(20px);
+}
+
 /* cœur des favoris */
 .card__fav,
 .card__share {
