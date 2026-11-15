@@ -69,7 +69,7 @@
     sort: $('#sort'), genres: $('#genres'), count: $('#count'), progress: $('#progress'), reset: $('#reset'),
     grid: $('#grid'), pager: $('#pager'), empty: $('#empty'), fail: $('#fail'), failText: $('#failText'),
     barAnchor: $('#barAnchor'), footTime: $('#footTime'), deals: $('#offres'),
-    emptyTitle: $('#emptyTitle'), emptyText: $('#emptyText'), favChip: $('#favChip'), newChip: $('#newChip'), newCount: $('#newCount'), favCount: $('#favCount'),
+    emptyTitle: $('#emptyTitle'), emptyText: $('#emptyText'), favChip: $('#favChip'), filtersBtn: $('#filtersBtn'), newChip: $('#newChip'), newCount: $('#newCount'), favCount: $('#favCount'),
     accountBtn: $('#accountBtn'), accountAvatar: $('#accountAvatar'), accountLabel: $('#accountLabel'),
     menu: $('#accountMenu'), menuName: $('#menuName'), menuFavs: $('#menuFavs'), menuFavCount: $('#menuFavCount'),
     menuLogout: $('#menuLogout'), menuAlerts: $('#menuAlerts'), menuDelete: $('#menuDelete'),
@@ -325,17 +325,19 @@
     const pages = pageCount(), current = state.page;
     els.pager.hidden = pages < 2;
     if (pages < 2) { els.pager.innerHTML = ''; return; }
-    const reach = innerWidth < 560 ? 1 : 2;
+    const narrow = innerWidth < 560;
+    const reach = narrow ? 1 : 2;
+    const previousLabel = L('Précédent', 'Previous'), nextLabel = L('Suivant', 'Next');
     const wanted = new Set([1, pages]);
     for (let p = current - reach; p <= current + reach; p++) if (p >= 1 && p <= pages) wanted.add(p);
-    let html = `<button type="button" class="pager__btn pager__btn--step" data-page="${current - 1}"${current === 1 ? ' disabled' : ''}>← ${L('Précédent', 'Previous')}</button>`;
+    let html = `<button type="button" class="pager__btn pager__btn--step" data-page="${current - 1}"${current === 1 ? ' disabled' : ''} aria-label="${previousLabel}">←${narrow ? '' : ` ${previousLabel}`}</button>`;
     let previous = 0;
     for (const p of [...wanted].sort((a, b) => a - b)) {
       if (p - previous > 1) html += '<span class="pager__gap" aria-hidden="true">…</span>';
       html += `<button type="button" class="pager__btn" data-page="${p}" aria-label="Page ${p}"${p === current ? ' aria-current="page"' : ''}>${int(p)}</button>`;
       previous = p;
     }
-    html += `<button type="button" class="pager__btn pager__btn--step" data-page="${current + 1}"${current === pages ? ' disabled' : ''}>${L('Suivant', 'Next')} →</button>`;
+    html += `<button type="button" class="pager__btn pager__btn--step" data-page="${current + 1}"${current === pages ? ' disabled' : ''} aria-label="${nextLabel}">${narrow ? '' : `${nextLabel} `}→</button>`;
     html += `<p class="pager__info">Page ${int(current)} ${L('sur', 'of')} ${int(pages)}</p>`;
     els.pager.innerHTML = html;
   }
@@ -374,6 +376,7 @@
     else if (!shown) els.count.textContent = L('Aucune offre', 'No deals');
     else els.count.innerHTML = `<b>${int(shown)}</b> ${L('offre', 'deal')}${shown > 1 ? 's' : ''}${filtered ? ` ${L('sur', 'of')} ${int(total)}` : ''}`;
     els.reset.hidden = !filtered;
+    els.filtersBtn.classList.toggle('is-active', state.maxPrice < MAX_PRICE || state.minDisc > 0 || state.minRev > 0 || state.sort !== 'pop');
     els.empty.hidden = !(total && !shown);
     if (state.onlyFavs && !shown) {
       els.emptyTitle.textContent = account.favs.size ? L('Aucun favori en promo ici.', 'No favourite on sale here.') : L('Pas encore de favori.', 'No favourites yet.');
@@ -534,6 +537,11 @@
       els.deals.scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth', block: 'start' });
     });
 
+    // Téléphone : les réglages (budget, réduction, avis, tri) se rangent derrière le bouton « Filtres ».
+    els.filtersBtn.addEventListener('click', () => {
+      const open = $('.bar').classList.toggle('is-open');
+      els.filtersBtn.setAttribute('aria-expanded', open);
+    });
     els.reset.addEventListener('click', resetFilters);
     els.newChip.addEventListener('click', () => {
       state.onlyNew = !state.onlyNew;

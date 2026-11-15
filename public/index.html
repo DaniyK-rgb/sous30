@@ -148,6 +148,12 @@
             <kbd aria-hidden="true">/</kbd>
           </label>
 
+          <!-- Téléphone seulement : ouvre ou referme les réglages ci-dessous -->
+          <button type="button" class="filters-toggle" id="filtersBtn" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h8M16 18h4"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="14" cy="18" r="2"/></svg>
+            <span data-en="Filters">Filtres</span>
+          </button>
+
           <label class="dial">
             <span class="dial__label" data-en-html="Max budget <output id=&quot;priceOut&quot; for=&quot;price&quot;>€30</output>">Budget max <output id="priceOut" for="price">30&nbsp;€</output></span>
             <input id="price" type="range" min="1" max="30" step="1" value="30">
